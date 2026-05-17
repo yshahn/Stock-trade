@@ -1,0 +1,1731 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0,user-scalable=no"/>
+<title>TradeSimulator — 30일 데이트레이딩 시뮬레이션</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet"/>
+<style>
+:root{
+  --bg:#08080a;--bg2:#0f0f12;--bg3:#16161a;--bg4:#1c1c22;--bg5:#23232c;
+  --border:#222228;--border2:#2e2e38;--border3:#3a3a48;
+  --text:#dddde8;--text2:#7878a0;--text3:#404058;
+  --green:#22c55e;--gdim:#0a1f0f;--gmid:#14532d;
+  --red:#f43f5e;--rdim:#1f0a0d;--rmid:#4c0d18;
+  --amber:#fbbf24;--adim:#1f1500;--amid:#6b4400;
+  --blue:#60a5fa;--bdim:#071020;--bmid:#1e3a6e;
+  --purple:#a78bfa;--pdim:#100820;
+  --cyan:#22d3ee;
+  --font:'Space Grotesk',sans-serif;
+  --mono:'Space Mono',monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--font);font-size:13px;overflow:hidden;}
+
+/* Layout */
+.shell{display:grid;grid-template-rows:52px 1fr;height:100vh;}
+
+/* Topbar */
+.topbar{background:var(--bg2);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 20px;gap:16px;}
+.logo{font-family:var(--mono);font-size:14px;font-weight:700;color:var(--cyan);letter-spacing:-0.5px;}
+.logo em{color:var(--text2);font-style:normal;font-weight:400;}
+.tb-divider{width:1px;height:22px;background:var(--border2);}
+.tb-chip{display:flex;flex-direction:column;gap:1px;}
+.tb-chip-label{font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:0.08em;}
+.tb-chip-val{font-size:13px;font-weight:600;font-family:var(--mono);}
+.spacer{flex:1;}
+.session-badge{display:flex;align-items:center;gap:7px;padding:5px 12px;border-radius:20px;font-size:11px;font-family:var(--mono);border:1px solid var(--border2);}
+.pulse{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+.pulse.active{background:var(--green);animation:glow 1.5s infinite;}
+.pulse.inactive{background:var(--text3);}
+.pulse.goal{background:var(--amber);}
+@keyframes glow{0%,100%{box-shadow:0 0 0 0 rgba(34,197,94,0.4)}50%{box-shadow:0 0 0 5px rgba(34,197,94,0)}}
+.sim-day-badge{padding:4px 12px;background:var(--pdim);border:1px solid #2a1a5e;border-radius:20px;font-size:11px;font-family:var(--mono);color:var(--purple);}
+
+/* Main */
+.main{display:grid;grid-template-columns:220px 1fr 260px;overflow:hidden;}
+
+/* Sidebar */
+.sidebar{background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;min-height:0;}
+.nav-section{padding:10px;flex-shrink:0;position:relative;z-index:2;}
+.nav-label{font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:0.1em;padding:0 8px;margin-bottom:6px;}
+.nav-item{display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:6px;cursor:pointer;color:var(--text2);font-size:12px;transition:all 0.12s;font-weight:500;background:none;border:none;width:100%;text-align:left;font-family:var(--font);-webkit-tap-highlight-color:transparent;}
+.nav-item:hover{background:var(--bg3);color:var(--text);}
+.nav-item.active{background:var(--bg4);color:var(--cyan);}
+.nav-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0;background:var(--border3);}
+.nav-item.active .nav-dot{background:var(--cyan);}
+
+/* Day calendar strip */
+.cal-strip{flex:1;overflow-y:auto;padding:8px 10px;min-height:0;position:relative;z-index:1;}
+.cal-strip-label{font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:8px;}
+.cal-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:4px;}
+.cal-cell{aspect-ratio:1;border-radius:5px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:9px;cursor:pointer;border:1px solid var(--border);transition:all 0.1s;font-family:var(--mono);-webkit-tap-highlight-color:transparent;touch-action:manipulation;}
+.cal-cell:hover{border-color:var(--border2);}
+.cal-cell.today{border-color:var(--cyan);color:var(--cyan);}
+.cal-cell.win{background:var(--gdim);border-color:var(--gmid);color:var(--green);}
+.cal-cell.loss{background:var(--rdim);border-color:var(--rmid);color:var(--red);}
+.cal-cell.skip{background:var(--bg3);color:var(--text3);}
+.cal-cell.future{opacity:0.3;}
+.cal-day-num{font-size:10px;font-weight:700;}
+.cal-day-pnl{font-size:8px;margin-top:1px;}
+
+/* Center */
+.center{overflow-y:auto;background:var(--bg);}
+.page{display:none;padding:20px;}
+.page.active{display:block;}
+.page-title{font-size:18px;font-weight:700;margin-bottom:16px;letter-spacing:-0.3px;}
+
+/* Cards */
+.card{background:var(--bg2);border:1px solid var(--border);border-radius:10px;margin-bottom:12px;overflow:hidden;}
+.card-hdr{display:flex;align-items:center;justify-content:space-between;padding:11px 16px;border-bottom:1px solid var(--border);}
+.card-title{font-size:10px;text-transform:uppercase;letter-spacing:0.09em;color:var(--text2);font-weight:600;}
+.card-body{padding:16px;}
+
+/* Metric cards */
+.mgrid{display:grid;gap:8px;margin-bottom:12px;}
+.mc{background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:12px 14px;}
+.mc-label{font-size:9px;text-transform:uppercase;letter-spacing:0.08em;color:var(--text3);margin-bottom:5px;}
+.mc-val{font-size:19px;font-weight:700;font-family:var(--mono);}
+.mc-sub{font-size:10px;color:var(--text2);margin-top:3px;}
+
+/* Goal ring */
+.goal-section{display:flex;align-items:center;gap:20px;padding:16px;}
+.goal-ring-wrap{position:relative;width:100px;height:100px;flex-shrink:0;}
+.goal-ring-wrap svg{transform:rotate(-90deg);}
+.goal-ring-center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;}
+.goal-ring-pct{font-family:var(--mono);font-size:18px;font-weight:700;}
+.goal-ring-label{font-size:9px;color:var(--text2);}
+.goal-details{flex:1;}
+.goal-row{display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border);font-size:12px;}
+.goal-row:last-child{border-bottom:none;}
+
+/* Progress bar */
+.pbar{height:6px;background:var(--bg4);border-radius:3px;overflow:hidden;margin:4px 0;}
+.pfill{height:100%;border-radius:3px;transition:width 0.4s,background 0.4s;}
+
+/* Session panel */
+.session-controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+.btn{padding:8px 16px;border-radius:6px;font-family:var(--font);font-size:12px;font-weight:600;cursor:pointer;border:none;transition:all 0.15s;-webkit-tap-highlight-color:transparent;touch-action:manipulation;}
+.btn-start{background:var(--green);color:#000;}
+.btn-start:hover{background:#4ade80;}
+.btn-stop{background:var(--red);color:#fff;}
+.btn-stop:hover{background:#fb7185;}
+.btn-ghost{background:var(--bg3);color:var(--text2);border:1px solid var(--border2);}
+.btn-ghost:hover{border-color:var(--border3);color:var(--text);}
+.btn-cyan{background:var(--cyan);color:#000;}
+.btn-cyan:hover{background:#67e8f9;}
+.btn-sm{padding:5px 10px;font-size:11px;}
+
+/* Trade feed */
+.trade-feed{max-height:260px;overflow-y:auto;}
+.feed-item{display:flex;align-items:center;gap:10px;padding:8px 16px;border-bottom:1px solid var(--border);font-size:11px;animation:fadeIn 0.3s ease;}
+.feed-item:last-child{border-bottom:none;}
+@keyframes fadeIn{from{opacity:0;transform:translateX(-6px)}to{opacity:1;transform:none}}
+.feed-time{color:var(--text3);font-family:var(--mono);min-width:46px;}
+.feed-badge{display:inline-flex;align-items:center;font-size:9px;padding:2px 6px;border-radius:3px;font-weight:700;font-family:var(--mono);}
+.fb-buy{background:var(--gdim);color:var(--green);border:1px solid var(--gmid);}
+.fb-sell{background:var(--rdim);color:var(--red);border:1px solid var(--rmid);}
+.fb-tp{background:var(--gdim);color:var(--green);border:1px solid var(--gmid);}
+.fb-sl{background:var(--rdim);color:var(--red);border:1px solid var(--rmid);}
+.fb-sys{background:var(--pdim);color:var(--purple);border:1px solid #2a1a5e;}
+.feed-desc{flex:1;color:var(--text);}
+.feed-pnl{font-family:var(--mono);font-weight:700;min-width:70px;text-align:right;}
+
+/* Journal table */
+.jtable{width:100%;border-collapse:collapse;}
+.jtable th{font-size:9px;text-transform:uppercase;letter-spacing:0.07em;color:var(--text3);padding:7px 12px;border-bottom:1px solid var(--border);text-align:left;}
+.jtable td{padding:9px 12px;border-bottom:1px solid var(--border);font-size:11px;font-family:var(--mono);}
+.jtable tr:last-child td{border-bottom:none;}
+.jtable tr:hover td{background:var(--bg3);}
+
+/* Badges */
+.badge{display:inline-flex;align-items:center;font-size:9px;padding:2px 7px;border-radius:3px;font-weight:700;letter-spacing:0.04em;}
+.b-win{background:var(--gdim);color:var(--green);border:1px solid var(--gmid);}
+.b-loss{background:var(--rdim);color:var(--red);border:1px solid var(--rmid);}
+.b-skip{background:var(--bg4);color:var(--text3);border:1px solid var(--border2);}
+.b-partial{background:var(--adim);color:var(--amber);border:1px solid var(--amid);}
+.b-sim{background:var(--pdim);color:var(--purple);border:1px solid #2a1a5e;}
+
+/* Right panel */
+.rpanel{background:var(--bg2);border-left:1px solid var(--border);display:flex;flex-direction:column;overflow-y:auto;}
+.rp-sec{padding:14px;border-bottom:1px solid var(--border);}
+.rp-title{font-size:9px;text-transform:uppercase;letter-spacing:0.09em;color:var(--text3);font-weight:600;margin-bottom:10px;}
+
+/* Order form */
+.fg{margin-bottom:8px;}
+.flabel{font-size:9px;text-transform:uppercase;letter-spacing:0.07em;color:var(--text3);display:block;margin-bottom:4px;}
+.finput{width:100%;padding:6px 9px;background:var(--bg3);border:1px solid var(--border2);border-radius:5px;color:var(--text);font-family:var(--mono);font-size:12px;outline:none;}
+.finput:focus{border-color:var(--border3);}
+.fselect{width:100%;padding:6px 9px;background:var(--bg3);border:1px solid var(--border2);border-radius:5px;color:var(--text);font-family:var(--mono);font-size:12px;cursor:pointer;outline:none;}
+.btn-row{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px;}
+.btn-buy{background:var(--green);color:#000;font-weight:700;}
+.btn-buy:hover{background:#4ade80;}
+.btn-sell{background:var(--red);color:#fff;font-weight:700;}
+.btn-sell:hover{background:#fb7185;}
+
+/* Est box */
+.est-box{background:var(--bg3);border:1px solid var(--border);border-radius:5px;padding:8px 10px;margin:6px 0;}
+.est-row{display:flex;justify-content:space-between;font-size:10px;font-family:var(--mono);margin-bottom:3px;color:var(--text2);}
+.est-row.total{border-top:1px solid var(--border);padding-top:5px;margin-top:3px;color:var(--text);font-size:11px;font-weight:700;}
+
+/* Rule item */
+.rule-item{display:flex;align-items:center;gap:7px;padding:7px 0;border-bottom:1px solid var(--border);font-size:11px;}
+.rule-item:last-child{border-bottom:none;}
+.toggle{width:28px;height:16px;border-radius:8px;position:relative;cursor:pointer;flex-shrink:0;border:none;transition:background 0.2s;}
+.toggle.on{background:var(--green);}
+.toggle.off{background:var(--border3);}
+.toggle::after{content:'';position:absolute;width:12px;height:12px;border-radius:50%;background:white;top:2px;transition:left 0.2s;}
+.toggle.on::after{left:14px;}
+.toggle.off::after{left:2px;}
+
+/* Stats */
+.stats-row{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);font-size:12px;}
+.stats-row:last-child{border-bottom:none;}
+
+/* Month report */
+.report-section{background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:16px;margin-bottom:12px;}
+.report-title{font-size:11px;font-weight:700;color:var(--text);margin-bottom:12px;display:flex;align-items:center;gap:6px;}
+
+/* Toast */
+.toast{position:fixed;bottom:16px;right:16px;background:var(--bg4);border:1px solid var(--border2);border-radius:8px;padding:9px 14px;font-size:11px;z-index:9999;transform:translateY(50px);opacity:0;transition:all 0.25s;max-width:300px;font-family:var(--mono);}
+.toast.show{transform:translateY(0);opacity:1;}
+.toast.g{border-color:var(--gmid);color:var(--green);}
+.toast.r{border-color:var(--rmid);color:var(--red);}
+.toast.a{border-color:var(--amid);color:var(--amber);}
+.toast.p{border-color:#2a1a5e;color:var(--purple);}
+
+canvas{display:block;}
+::-webkit-scrollbar{width:4px;height:4px;}
+::-webkit-scrollbar-track{background:var(--bg2);}
+::-webkit-scrollbar-thumb{background:var(--bg5);border-radius:2px;}
+</style>
+</head>
+<body>
+<div class="shell">
+
+<!-- Topbar -->
+<div class="topbar">
+  <span class="logo">TraderSim <em>30D</em></span>
+  <div class="tb-divider"></div>
+  <div class="tb-chip"><span class="tb-chip-label">시뮬레이션 일자</span><span class="tb-chip-val" id="tb-day" style="color:var(--purple)">Day 0 / 30</span></div>
+  <div class="tb-divider"></div>
+  <div class="tb-chip"><span class="tb-chip-label">누적 손익</span><span class="tb-chip-val" id="tb-total" style="color:var(--green)">+$0</span></div>
+  <div class="tb-divider"></div>
+  <div class="tb-chip"><span class="tb-chip-label">오늘 손익</span><span class="tb-chip-val" id="tb-today">$0</span></div>
+  <div class="tb-divider"></div>
+  <div class="tb-chip"><span class="tb-chip-label">일 목표</span><span class="tb-chip-val" style="color:var(--cyan)">$71</span></div>
+  <div class="tb-divider"></div>
+  <div class="tb-chip"><span class="tb-chip-label">월 목표</span><span class="tb-chip-val" style="color:var(--green)">$1,500</span></div>
+  <div class="tb-divider"></div>
+  <div class="tb-chip"><span class="tb-chip-label">목표 달성</span><span class="tb-chip-val" id="tb-achieved">0 / 0일</span></div>
+  <div class="spacer"></div>
+  <div class="sim-day-badge" id="sim-date-badge">시뮬레이션 준비중</div>
+  <div class="sim-day-badge" id="phase-badge" style="background:var(--bdim);color:var(--blue);border-color:var(--bmid)">Phase 1 — 5종목 $10K</div>
+  <div class="session-badge" id="session-badge">
+    <div class="pulse inactive" id="pulse-dot"></div>
+    <span id="session-label">세션 없음</span>
+  </div>
+  <span id="clock" style="font-family:var(--mono);font-size:10px;color:var(--text3)">--:-- ET</span>
+</div>
+
+<div class="main">
+
+<!-- Sidebar -->
+<div class="sidebar">
+  <div class="nav-section">
+    <div class="nav-label">메뉴</div>
+    <button class="nav-item active" onclick="goPage('session',this)"><div class="nav-dot"></div>오늘 세션</button>
+    <button class="nav-item" onclick="goPage('journal',this)"><div class="nav-dot"></div>30일 일지</button>
+    <button class="nav-item" onclick="goPage('rules',this)"><div class="nav-dot"></div>자동매매 규칙</button>
+    <button class="nav-item" onclick="goPage('report',this)"><div class="nav-dot"></div>월간 리포트</button>
+    <button class="nav-item" onclick="goPage('settings',this)"><div class="nav-dot"></div>시뮬레이션 설정</button>
+  </div>
+  <div class="cal-strip">
+    <div class="cal-strip-label">30일 달력</div>
+    <div class="cal-grid" id="cal-grid"></div>
+  </div>
+</div>
+
+<!-- Center -->
+<div class="center">
+
+  <!-- SESSION -->
+  <div class="page active" id="page-session">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+      <span class="page-title">오늘 세션</span>
+      <div class="session-controls">
+        <button class="btn btn-start" id="btn-start" onclick="startSession()">▶ 세션 시작</button>
+        <button class="btn btn-stop" id="btn-stop" onclick="endSession()" style="display:none">■ 세션 종료</button>
+        <button class="btn btn-ghost btn-sm" onclick="fastForward()">⏩ 빠른 진행</button>
+      </div>
+    </div>
+
+    <!-- AI 종목 추천 패널 -->
+    <div class="card" id="ai-rec-panel">
+      <div class="card-hdr">
+        <span class="card-title">🤖 AI 오늘의 종목 추천</span>
+        <button class="btn btn-ghost btn-sm" onclick="refreshAIRec()">↻ 새로고침</button>
+      </div>
+      <div id="ai-rec-body" style="padding:12px 16px">
+        <div style="color:var(--text3);font-size:12px">세션 시작 시 자동으로 추천 종목이 표시됩니다.</div>
+      </div>
+    </div>
+
+    <!-- Goal ring -->
+    <div class="card">
+      <div class="card-hdr"><span class="card-title">오늘 목표 진행</span><span id="session-time" style="font-family:var(--mono);font-size:11px;color:var(--text2)">세션 없음</span></div>
+      <div class="goal-section">
+        <div class="goal-ring-wrap">
+          <svg width="100" height="100" viewBox="0 0 100 100">
+            <circle cx="50" cy="50" r="42" fill="none" stroke="var(--bg4)" stroke-width="8"/>
+            <circle cx="50" cy="50" r="42" fill="none" id="ring-progress" stroke="var(--cyan)" stroke-width="8" stroke-linecap="round" stroke-dasharray="264" stroke-dashoffset="264" style="transition:stroke-dashoffset 0.5s,stroke 0.5s"/>
+          </svg>
+          <div class="goal-ring-center">
+            <span class="goal-ring-pct" id="ring-pct">0%</span>
+            <span class="goal-ring-label">달성</span>
+          </div>
+        </div>
+        <div class="goal-details">
+          <div class="goal-row"><span style="color:var(--text2)">일일 목표</span><span id="g-goal" style="font-family:var(--mono);font-weight:700">$71</span></div>
+          <div class="goal-row"><span style="color:var(--text2)">현재 손익</span><span id="g-cur" style="font-family:var(--mono);font-weight:700;color:var(--cyan)">$0</span></div>
+          <div class="goal-row"><span style="color:var(--text2)">잔여 목표</span><span id="g-rem" style="font-family:var(--mono)">$71</span></div>
+          <div class="goal-row"><span style="color:var(--text2)">손실 한도</span><span id="g-dlimit" style="font-family:var(--mono);color:var(--red)">$0 / $2,000</span></div>
+          <div class="goal-row"><span style="color:var(--text2)">거래 횟수</span><span id="g-trades" style="font-family:var(--mono)">0</span></div>
+          <div class="goal-row"><span style="color:var(--text2)">월 목표</span><span style="font-family:var(--mono);color:var(--green)">$1,500 (21거래일)</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="mgrid" style="grid-template-columns:repeat(4,1fr)">
+      <div class="mc"><div class="mc-label">총 자산</div><div class="mc-val" id="s-asset">$100,000</div></div>
+      <div class="mc"><div class="mc-label">가용 현금</div><div class="mc-val" id="s-cash">$100,000</div></div>
+      <div class="mc"><div class="mc-label">평가금액</div><div class="mc-val" id="s-portval">$0</div></div>
+      <div class="mc"><div class="mc-label">미실현 손익</div><div class="mc-val" id="s-upnl">$0</div></div>
+    </div>
+
+    <!-- Price ticker -->
+    <div class="card">
+      <div class="card-hdr"><span class="card-title">시뮬레이션 시세</span><span style="font-size:10px;color:var(--text2)" id="price-update-time">—</span></div>
+      <div style="padding:0" id="ticker-table">
+        <table class="jtable" style="table-layout:fixed">
+          <thead><tr><th>종목</th><th>현재가</th><th>변동</th><th>변동폭</th><th>고가</th><th>저가</th><th></th></tr></thead>
+          <tbody id="ticker-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Trade feed -->
+    <div class="card">
+      <div class="card-hdr"><span class="card-title">실시간 거래 피드</span><button class="btn btn-ghost btn-sm" onclick="clearFeed()">지우기</button></div>
+      <div class="trade-feed" id="trade-feed">
+        <div style="padding:20px;text-align:center;color:var(--text3);font-size:12px">세션을 시작하면 거래 기록이 여기에 표시됩니다</div>
+      </div>
+    </div>
+
+    <!-- Positions -->
+    <div class="card">
+      <div class="card-hdr"><span class="card-title">보유 포지션</span></div>
+      <table class="jtable">
+        <thead><tr><th>종목</th><th>수량</th><th>평균단가</th><th>현재가</th><th>손익</th><th>수익률</th><th></th></tr></thead>
+        <tbody id="pos-body"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- JOURNAL -->
+  <div class="page" id="page-journal">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+      <span class="page-title">30일 트레이딩 일지</span>
+      <button class="btn btn-ghost btn-sm" onclick="exportJournal()">📋 내보내기</button>
+    </div>
+    <div class="mgrid" style="grid-template-columns:repeat(4,1fr)">
+      <div class="mc"><div class="mc-label">진행 일수</div><div class="mc-val" id="j-days">0 / 30</div></div>
+      <div class="mc"><div class="mc-label">목표 달성일</div><div class="mc-val pos" id="j-wins">0일</div></div>
+      <div class="mc"><div class="mc-label">목표 미달성</div><div class="mc-val neg" id="j-losses">0일</div></div>
+      <div class="mc"><div class="mc-label">달성률</div><div class="mc-val" id="j-wr">—</div></div>
+    </div>
+    <div class="card">
+      <div class="card-hdr"><span class="card-title">일별 기록</span></div>
+      <table class="jtable">
+        <thead><tr><th>날짜</th><th>Day</th><th>거래수</th><th>일손익</th><th>누적손익</th><th>목표</th><th>결과</th><th>메모</th></tr></thead>
+        <tbody id="journal-body"></tbody>
+      </table>
+    </div>
+    <div class="card">
+      <div class="card-hdr"><span class="card-title">손익 추이</span></div>
+      <div style="padding:16px"><canvas id="journal-chart" height="140"></canvas></div>
+    </div>
+  </div>
+
+  <!-- RULES -->
+  <div class="page" id="page-rules">
+    <span class="page-title">자동매매 규칙</span>
+    <div style="background:var(--bdim);border:1px solid var(--bmid);border-radius:6px;padding:10px 14px;margin-bottom:12px;font-size:11px;color:var(--blue)">
+      ℹ 자동매매 규칙은 세션 중 5초마다 체크됩니다. 목표가 도달 시 즉시 시뮬레이션 주문이 실행됩니다.
+    </div>
+    <div class="card" style="margin-bottom:12px">
+      <div class="card-hdr"><span class="card-title">규칙 추가</span></div>
+      <div style="padding:14px;display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div class="fg"><label class="flabel">종목</label><input class="finput" id="nr-sym" placeholder="AAPL"/></div>
+        <div class="fg"><label class="flabel">유형</label>
+          <select class="fselect" id="nr-type">
+            <option value="tp">익절 (Take Profit)</option>
+            <option value="sl">손절 (Stop Loss)</option>
+            <option value="dip">저점매수 (Dip Buy)</option>
+          </select>
+        </div>
+        <div class="fg"><label class="flabel">목표가 ($)</label><input class="finput" type="number" id="nr-price"/></div>
+        <div class="fg"><label class="flabel">수량 (주)</label><input class="finput" type="number" id="nr-qty" value="10"/></div>
+        <div style="grid-column:1/-1"><button class="btn btn-cyan" style="width:100%;padding:9px" onclick="addRule()">+ 규칙 등록</button></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-hdr"><span class="card-title">등록된 규칙</span><span id="rules-count" style="font-size:10px;color:var(--text2)">0개</span></div>
+      <div id="rules-list" style="padding:0 16px"></div>
+    </div>
+  </div>
+
+  <!-- REPORT -->
+  <div class="page" id="page-report">
+    <span class="page-title">월간 리포트</span>
+    <div id="report-content"></div>
+  </div>
+
+  <!-- SETTINGS -->
+  <div class="page" id="page-settings">
+    <span class="page-title">시뮬레이션 설정</span>
+
+    <!-- Google Drive 동기화 카드 -->
+    <div class="card" style="margin-bottom:12px;border-color:var(--bmid)">
+      <div class="card-hdr" style="background:var(--bdim)">
+        <span class="card-title" style="color:var(--blue)">☁ Google Drive 동기화</span>
+        <span style="font-size:10px;color:var(--text2)">iPad ↔ 데스크탑 동일 데이터</span>
+      </div>
+      <div style="padding:14px">
+        <!-- Step 1: Client ID/Secret -->
+        <div id="gdrive-step1">
+          <div style="font-size:11px;color:var(--text2);margin-bottom:10px;line-height:1.8">
+            <strong style="color:var(--text)">한 번만 설정하면 영구 자동 동기화됩니다.</strong><br>
+            1. <a href="https://console.cloud.google.com" target="_blank" style="color:var(--blue)">Google Cloud Console</a> → 새 프로젝트 생성<br>
+            2. "OAuth 2.0 클라이언트 ID" 발급 (웹 애플리케이션)<br>
+            3. 승인된 리디렉션 URI에 <code style="background:var(--bg4);padding:1px 5px;border-radius:3px">https://oauth2.example.com/code</code> 추가<br>
+            4. Client ID와 Client Secret 아래에 입력 후 "Google 로그인" 클릭
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+            <div class="fg"><label class="flabel">Client ID</label>
+              <input class="finput" id="gdrive-client-id" placeholder="xxxxx.apps.googleusercontent.com"/>
+            </div>
+            <div class="fg"><label class="flabel">Client Secret</label>
+              <input class="finput" id="gdrive-client-secret" placeholder="GOCSPX-xxxxx"/>
+            </div>
+          </div>
+          <button class="btn btn-cyan" style="width:100%;padding:9px;margin-top:4px" onclick="gdriveOAuthStart()">
+            🔑 Google 로그인 (최초 1회)
+          </button>
+        </div>
+
+        <!-- Step 2: Paste auth code -->
+        <div id="gdrive-step2" style="display:none;margin-top:10px">
+          <div style="font-size:11px;color:var(--amber);margin-bottom:8px">
+            팝업창에서 Google 로그인 후 표시되는 코드를 붙여넣으세요.
+          </div>
+          <div class="fg"><label class="flabel">인증 코드</label>
+            <input class="finput" id="gdrive-auth-code" placeholder="4/0AxxxxxxxxxxxxxxxxxxxEJG"/>
+          </div>
+          <button class="btn btn-cyan" style="width:100%;padding:9px" onclick="gdriveExchangeCode()">✓ 코드 확인 → 연결 완료</button>
+        </div>
+
+        <!-- Connected state -->
+        <div id="gdrive-connected" style="display:none;margin-top:10px">
+          <div style="background:var(--gdim);border:1px solid var(--gmid);border-radius:5px;padding:10px 12px;display:flex;align-items:center;justify-content:space-between">
+            <span style="font-size:11px;color:var(--green)">✓ Google Drive 연결됨 — 자동 동기화 활성</span>
+            <button class="btn btn-ghost btn-sm" onclick="gdriveDisconnect()" style="color:var(--red)">연결 해제</button>
+          </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px">
+          <button class="btn btn-cyan" onclick="gdriveLoad()">☁ Drive에서 불러오기</button>
+          <button class="btn btn-ghost" onclick="gdriveSave()">☁ Drive에 저장</button>
+        </div>
+        <div id="gdrive-status" style="margin-top:8px;font-size:10px;font-family:var(--mono);color:var(--text2)">미연결</div>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div class="card">
+        <div class="card-hdr"><span class="card-title">기본 설정</span></div>
+        <div style="padding:14px">
+          <div class="fg"><label class="flabel">초기 자본 ($)</label><input class="finput" type="number" id="cfg-capital" value="100000"/></div>
+          <div class="fg"><label class="flabel">일일 목표 ($)</label><input class="finput" type="number" id="cfg-goal" value="71"/></div>
+          <div class="fg"><label class="flabel">일일 손실 한도 ($)</label><input class="finput" type="number" id="cfg-dlimit" value="2000"/></div>
+          <div class="fg"><label class="flabel">시뮬레이션 기간 (일)</label><input class="finput" type="number" id="cfg-days" value="30"/></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-hdr"><span class="card-title">트레이딩 설정</span></div>
+        <div style="padding:14px">
+          <div class="fg"><label class="flabel">기본 손절선 (%)</label><input class="finput" type="number" id="cfg-sl" value="0.5"/></div>
+          <div class="fg"><label class="flabel">기본 익절선 (%)</label><input class="finput" type="number" id="cfg-tp" value="1.0"/></div>
+          <div class="fg"><label class="flabel">거래당 포지션 크기 ($)</label><input class="finput" type="number" id="cfg-possize" value="16667"/></div>
+          <div class="fg"><label class="flabel">시뮬레이션 속도</label>
+            <select class="fselect" id="cfg-speed">
+              <option value="3000">보통 (3초)</option>
+              <option value="1500">빠름 (1.5초)</option>
+              <option value="800">매우 빠름 (0.8초)</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      <div style="grid-column:1/-1;display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <button class="btn btn-cyan" style="padding:10px" onclick="applySettings()">설정 적용</button>
+        <button class="btn btn-ghost" style="padding:10px" onclick="saveState();showToast('💾 저장 완료','g')">💾 수동 저장</button>
+        <button class="btn btn-ghost" style="padding:10px" onclick="resetSim()">🔄 시뮬레이션 초기화</button>
+        <button class="btn btn-ghost" style="padding:10px;color:var(--red)" onclick="clearSave()">🗑 저장 데이터 삭제</button>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /center -->
+
+<!-- Right panel -->
+<div class="rpanel">
+  <div class="rp-sec">
+    <div class="rp-title">빠른 주문</div>
+    <div class="fg"><label class="flabel">종목</label>
+      <select class="fselect" id="o-sym" onchange="updateEst()">
+        <option value="AAPL">AAPL — Apple</option>
+        <option value="TSLA">TSLA — Tesla</option>
+        <option value="NVDA">NVDA — NVIDIA</option>
+        <option value="MSFT">MSFT — Microsoft</option>
+        <option value="META">META — Meta</option>
+        <option value="AMZN">AMZN — Amazon</option>
+        <option value="GOOGL">GOOGL — Alphabet</option>
+        <option value="AMD">AMD — AMD</option>
+        <option value="NFLX">NFLX — Netflix</option>
+        <option value="CRWD">CRWD — CrowdStrike</option>
+        <option value="COIN">COIN — Coinbase</option>
+        <option value="PLTR">PLTR — Palantir</option>
+        <option value="SPY">SPY — S&amp;P500 ETF</option>
+        <option value="QQQ">QQQ — Nasdaq 100 ETF</option>
+      </select>
+    </div>
+    <div id="ai-sym-signal" style="margin-bottom:8px;font-size:10px;min-height:16px"></div>
+    <div class="fg"><label class="flabel">수량 (주)</label><input class="finput" type="number" id="o-qty" value="10" oninput="updateEst()"/></div>
+    <div class="est-box">
+      <div class="est-row"><span>종목</span><span id="e-sym">—</span></div>
+      <div class="est-row"><span>현재가</span><span id="e-price">—</span></div>
+      <div class="est-row total"><span>예상 금액</span><span id="e-total" style="color:var(--cyan)">—</span></div>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-buy" onclick="placeOrder('buy')">매수</button>
+      <button class="btn btn-sell" onclick="placeOrder('sell')">매도</button>
+    </div>
+    <div id="order-msg" style="margin-top:6px;font-size:10px;font-family:var(--mono);min-height:16px"></div>
+  </div>
+
+  <div class="rp-sec">
+    <div class="rp-title">리스크 현황</div>
+    <div id="rp-risk"></div>
+  </div>
+
+  <div class="rp-sec">
+    <div class="rp-title">자동매매 현황</div>
+    <div id="rp-rules"></div>
+  </div>
+
+  <div class="rp-sec">
+    <div class="rp-title">시뮬레이션 통계</div>
+    <div id="rp-stats"></div>
+  </div>
+</div>
+
+</div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ─── Config ───────────────────────────────────────────────
+let CFG={capital:100000,goal:71,dlimit:2000,days:30,sl:0.5,tp:1.0,possize:10000,speed:3000,phase1stocks:5,phase2stocks:3,phase1possize:10000,phase2possize:16667,phaseSwitch:15};
+
+// ─── Market data ──────────────────────────────────────────
+const STOCKS={
+  AAPL:{name:'Apple Inc.',     p:185.32,open:183.00,high:186.50,low:182.80,vol:'중'},
+  TSLA:{name:'Tesla Inc.',     p:247.80,open:251.00,high:253.40,low:245.20,vol:'고'},
+  NVDA:{name:'NVIDIA Corp.',   p:875.40,open:860.00,high:882.10,low:857.30,vol:'고'},
+  MSFT:{name:'Microsoft',      p:414.92,open:412.00,high:417.50,low:411.20,vol:'중'},
+  META:{name:'Meta Platforms', p:492.15,open:488.00,high:496.80,low:487.40,vol:'중'},
+  AMZN:{name:'Amazon',         p:184.60,open:183.00,high:186.20,low:182.10,vol:'중'},
+  GOOGL:{name:'Alphabet',      p:175.20,open:174.00,high:176.80,low:173.50,vol:'중'},
+  AMD:{name:'AMD',             p:162.40,open:160.00,high:164.20,low:159.30,vol:'고'},
+  NFLX:{name:'Netflix',        p:628.90,open:624.00,high:632.50,low:622.10,vol:'중'},
+  CRWD:{name:'CrowdStrike',    p:318.50,open:315.00,high:321.80,low:313.40,vol:'고'},
+  COIN:{name:'Coinbase',       p:225.80,open:222.00,high:229.40,low:220.10,vol:'고'},
+  PLTR:{name:'Palantir',       p:24.60, open:24.00, high:25.20, low:23.80, vol:'고'},
+  SPY:{name:'S&P 500 ETF',    p:521.40,open:519.00,high:523.80,low:518.50,vol:'저'},
+  QQQ:{name:'Nasdaq 100 ETF', p:445.20,open:443.00,high:447.10,low:442.30,vol:'저'},
+};
+
+// ─── State ────────────────────────────────────────────────
+let S={
+  cash:100000,
+  portfolio:[],
+  journal:[],    // [{day,date,trades,pnl,goal,result,memo}]
+  rules:[],
+  ruleId:1,
+  simDay:0,
+  sessionActive:false,
+  sessionStartTime:null,
+  todayPnl:0,
+  todayLoss:0,
+  todayTrades:0,
+  totalPnl:0,
+  feedItems:[],
+  simInterval:null,
+  priceInterval:null,
+  sessionTimer:null,
+  sessionElapsed:0,
+  halted:false,
+};
+
+// ─── Helpers ──────────────────────────────────────────────
+const $=id=>document.getElementById(id);
+function fmt$(n,s=false){return(s&&n>=0?'+':'')+'$'+Math.abs(n).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});}
+function fmtP(n,s=false){return(s&&n>=0?'+':'')+n.toFixed(2)+'%';}
+function getP(sym){return STOCKS[sym]?STOCKS[sym].p:185;}
+function portVal(){return S.portfolio.reduce((a,p)=>a+p.qty*p.p,0);}
+function unrealPnl(){return S.portfolio.reduce((a,p)=>a+(p.p-p.cost)*p.qty,0);}
+
+function showToast(msg,c=''){
+  const t=$('toast');t.textContent=msg;t.className='toast '+(c||'');
+  t.classList.add('show');setTimeout(()=>t.classList.remove('show'),3200);
+}
+
+// ─── Clock ────────────────────────────────────────────────
+function tick(){
+  const et=new Date(new Date().toLocaleString('en-US',{timeZone:'America/New_York'}));
+  $('clock').textContent=et.toTimeString().slice(0,8)+' ET';
+}
+setInterval(tick,1000);tick();
+
+// ─── Nav ──────────────────────────────────────────────────
+function goPage(id,el){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  const pg=$('page-'+id);
+  if(!pg){ console.warn('Page not found: page-'+id); return; }
+  pg.classList.add('active');
+  if(el) el.classList.add('active');
+  else {
+    // 클릭 엘리먼트 없을 때 nav에서 찾아서 활성화
+    document.querySelectorAll('.nav-item').forEach(n=>{
+      if(n.getAttribute('onclick') && n.getAttribute('onclick').includes("'"+id+"'")) n.classList.add('active');
+    });
+  }
+  if(id==='journal') renderJournal();
+  if(id==='rules')   renderRulesList();
+  if(id==='report')  renderReport();
+  if(id==='session') { renderTicker(); renderPositions(); updateSessionMetrics(); }
+}
+
+// ─── Price simulation ─────────────────────────────────────
+function tickPrices(){
+  Object.keys(STOCKS).forEach(sym=>{
+    const s=STOCKS[sym];
+    const move=(Math.random()-0.49)*s.p*0.003;
+    s.p=Math.max(1,+(s.p+move).toFixed(2));
+    s.high=Math.max(s.high,s.p);
+    s.low=Math.min(s.low,s.p);
+  });
+  S.portfolio.forEach(p=>{if(STOCKS[p.sym])p.p=STOCKS[p.sym].p;});
+  if(S.sessionActive){
+    renderTicker();
+    renderPositions();
+    updateSessionMetrics();
+    checkRules();
+  }
+}
+
+function renderTicker(){
+  $('ticker-body').innerHTML=Object.entries(STOCKS).map(([sym,d])=>{
+    const chg=d.p-d.open,chgP=chg/d.open*100;
+    return `<tr>
+      <td><strong>${sym}</strong></td>
+      <td style="color:${chgP>=0?'var(--green)':'var(--red)'}">${fmt$(d.p)}</td>
+      <td class="${chgP>=0?'pos':'neg'}" style="color:${chgP>=0?'var(--green)':'var(--red)'}">${fmtP(chgP,true)}</td>
+      <td class="${chgP>=0?'pos':'neg'}" style="color:${chgP>=0?'var(--green)':'var(--red)'}">${fmt$(chg,true)}</td>
+      <td style="color:var(--text2)">${fmt$(d.high)}</td>
+      <td style="color:var(--text2)">${fmt$(d.low)}</td>
+      <td><button class="btn btn-ghost btn-sm" onclick="quickTrade('${sym}')">${sym} 거래</button></td>
+    </tr>`;
+  }).join('');
+  $('price-update-time').textContent='업데이트: '+new Date().toTimeString().slice(0,8);
+}
+
+// ─── Session ──────────────────────────────────────────────
+function startSession(){
+  if(S.halted){showToast('손실 한도 초과 — 오늘 거래 불가','r');return;}
+  if(S.simDay>=CFG.days){showToast('30일 시뮬레이션 완료!','p');goPage('report',null);return;}
+  S.simDay++;
+  S.sessionActive=true;
+  S.sessionStartTime=Date.now();
+  S.todayPnl=0;S.todayLoss=0;S.todayTrades=0;S.halted=false;
+  S.sessionElapsed=0;
+  // 페이즈에 따라 possize 자동 조정
+  const isPhase2 = S.simDay > CFG.phaseSwitch;
+  CFG.possize = isPhase2 ? CFG.phase2possize : CFG.phase1possize;
+  S.currentPhase = isPhase2 ? 2 : 1;
+  S.currentStocks = isPhase2 ? CFG.phase2stocks : CFG.phase1stocks;
+  // Reset daily stock highs/lows
+  Object.keys(STOCKS).forEach(sym=>{STOCKS[sym].open=STOCKS[sym].p;STOCKS[sym].high=STOCKS[sym].p;STOCKS[sym].low=STOCKS[sym].p;});
+  $('btn-start').style.display='none';
+  $('btn-stop').style.display='';
+  $('pulse-dot').className='pulse active';
+  $('session-label').textContent='Day '+S.simDay+' 진행중';
+  $('sim-date-badge').textContent='Day '+S.simDay+' / '+CFG.days;
+  $('sim-day-badge').style.color='var(--cyan)';
+  const pb=$('phase-badge');
+  if(pb){
+    if(S.simDay<=CFG.phaseSwitch){pb.textContent='📘 Phase 1 — 5종목 $10K';pb.style.color='var(--blue)';}
+    else{pb.textContent='📗 Phase 2 — 3종목 $16.7K';pb.style.color='var(--green)';}
+  }
+  const phaseLabel = S.simDay <= CFG.phaseSwitch
+    ? '📘 Phase 1 — 5종목 × $10,000 (분산형)'
+    : '📗 Phase 2 — 3종목 × $16,667 (집중형)';
+  addFeed('SYS','','Day '+S.simDay+' 세션 시작 | '+phaseLabel+' | 일목표: '+fmt$(CFG.goal)+' (월 $1,500 = 21일 × $71)','sys');
+  // Start price tick
+  S.priceInterval=setInterval(tickPrices,CFG.speed);
+  // Session timer
+  S.sessionTimer=setInterval(()=>{
+    S.sessionElapsed++;
+    const h=Math.floor(S.sessionElapsed/3600),m=Math.floor((S.sessionElapsed%3600)/60),s=S.sessionElapsed%60;
+    $('session-time').textContent=`${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+  },1000);
+  renderTicker();
+  updateSessionMetrics();
+  renderPositions();
+  renderCalendar();
+  refreshAIRec();
+  // AI 자동 매수 실행 (500ms 딜레이 — 시세 안정 후)
+  setTimeout(()=>aiAutoBuy(), 500);
+  showToast('Day '+S.simDay+' 세션 시작! AI가 종목을 분석중...','g');
+}
+
+function endSession(auto=false){
+  if(!S.sessionActive)return;
+  S.sessionActive=false;
+  clearInterval(S.priceInterval);
+  clearInterval(S.sessionTimer);
+  $('btn-start').style.display='';
+  $('btn-stop').style.display='none';
+  $('pulse-dot').className='pulse inactive';
+  $('session-label').textContent='세션 종료';
+  // Close all positions at market
+  [...S.portfolio].forEach(p=>{
+    const pnl=(p.p-p.cost)*p.qty;
+    S.cash+=p.p*p.qty;
+    S.todayPnl+=pnl;
+    S.totalPnl+=pnl;
+    addFeed('SYS',p.sym,'세션 종료 — 강제 청산 '+p.qty+'주 @ '+fmt$(p.p),'sys');
+  });
+  S.portfolio=[];
+  // Record journal
+  const result=S.todayPnl>=CFG.goal?'win':S.todayPnl>0?'partial':S.todayLoss>0?'loss':'skip';
+  const today=new Date();
+  S.journal.push({
+    day:S.simDay,
+    date:today.toLocaleDateString('ko-KR',{month:'2-digit',day:'2-digit'}),
+    trades:S.todayTrades,
+    pnl:S.todayPnl,
+    goal:CFG.goal,
+    result,
+    memo:'',
+  });
+  updateTopbar();
+  renderCalendar();
+  renderPositions();
+  const msg={win:'🎯 목표 달성! '+fmt$(S.todayPnl,true),partial:'📊 부분 달성: '+fmt$(S.todayPnl,true),loss:'📉 손실: '+fmt$(S.todayPnl,true),skip:'— 거래 없음'}[result];
+  addFeed('SYS','','세션 종료. '+msg,'sys');
+  showToast('Day '+S.simDay+' 종료: '+msg,result==='win'?'g':result==='loss'?'r':'a');
+  saveState();
+  if(gdriveToken) gdriveSave(); // Drive 자동 저장
+  if(S.simDay>=CFG.days){setTimeout(()=>{goPage('report',null);showToast('30일 시뮬레이션 완료! 리포트 확인','p');},1200);}
+}
+
+function fastForward(){
+  if(!S.sessionActive){showToast('먼저 세션을 시작하세요','a');return;}
+  // Simulate 30 price ticks
+  for(let i=0;i<30;i++) tickPrices();
+  // TP/SL 규칙 체크 — 가격 변동 후 자동 체결 시뮬레이션
+  checkRules();
+  // 포지션이 없으면 AI가 다시 매수
+  if(S.portfolio.length===0 && !S.halted){
+    setTimeout(()=>aiAutoBuy(), 300);
+  }
+  showToast('⏩ 빠른 진행: 시세 30틱 — TP/SL 체크 완료','a');
+}
+
+// ─── Orders ───────────────────────────────────────────────
+function quickTrade(sym){$('o-sym').value=sym;updateEst();goPage('session',null);}
+
+function placeOrder(side){
+  if(!S.sessionActive){showToast('세션을 먼저 시작하세요','a');return;}
+  const sym=$('o-sym').value;
+  const qty=parseInt($('o-qty').value)||0;
+  if(qty<=0){showToast('수량을 입력하세요','r');return;}
+  const result=_placeOrder(side,sym,qty,false);
+  if(result.ok){
+    $('order-msg').textContent=result.msg;
+    $('order-msg').style.color=side==='buy'?'var(--green)':'var(--red)';
+  } else {
+    $('order-msg').textContent=result.msg;
+    $('order-msg').style.color='var(--red)';
+  }
+}
+
+function _placeOrder(side,sym,qty,auto){
+  if(S.halted)return{ok:false,msg:'손실 한도 초과 — 거래 차단됨'};
+  const price=getP(sym);
+  const total=price*qty;
+  if(side==='buy'){
+    if(total>S.cash)return{ok:false,msg:'잔액 부족'};
+    const COMMISSION = 10; // 거래당 수수료 $10 (스프레드+슬리피지 포함)
+    S.cash-=total+COMMISSION;
+    S.todayPnl-=COMMISSION; S.totalPnl-=COMMISSION;
+    const ex=S.portfolio.find(p=>p.sym===sym);
+    if(ex){ex.cost=(ex.cost*ex.qty+price*qty)/(ex.qty+qty);ex.qty+=qty;}
+    else S.portfolio.push({sym,qty,cost:price,p:price});
+    S.todayTrades++;
+    // 매수 시 자동으로 TP/SL 규칙 등록
+    const tpPrice=+(price*(1+CFG.tp/100)).toFixed(2);
+    const slPrice=+(price*(1-CFG.sl/100)).toFixed(2);
+    S.rules.push({id:S.ruleId++,sym,type:'tp',price:tpPrice,qty,active:true,triggered:false});
+    S.rules.push({id:S.ruleId++,sym,type:'sl',price:slPrice,qty,active:true,triggered:false});
+    addFeed('BUY',sym,`${qty}주 @ ${fmt$(price)} — TP ${fmt$(tpPrice)} (+${CFG.tp}%) / SL ${fmt$(slPrice)} (-${CFG.sl}%)`,'buy');
+    if(!auto)showToast(`매수: ${sym} ${qty}주 @ ${fmt$(price)} | TP ${fmt$(tpPrice)} / SL ${fmt$(slPrice)}`,'g');
+    renderRpRules();
+    return{ok:true,msg:`✓ ${sym} ${qty}주 매수 — TP/SL 자동 등록`};
+  } else {
+    const h=S.portfolio.find(p=>p.sym===sym);
+    if(!h||h.qty<qty)return{ok:false,msg:'보유 수량 부족 ('+String(h?h.qty:0)+'주)'};
+    const COMMISSION = 10;
+    const pnl=(price-h.cost)*qty - COMMISSION;
+    S.cash+=total-COMMISSION;h.qty-=qty;
+    if(h.qty===0)S.portfolio=S.portfolio.filter(p=>p.sym!==sym);
+    S.todayPnl+=pnl;S.totalPnl+=pnl;
+    S.todayTrades++;
+    if(pnl<0){S.todayLoss+=-pnl;if(S.todayLoss>=CFG.dlimit){S.halted=true;addFeed('SYS','','⚠ 일일 손실 한도 도달! 자동 거래 차단','sys');showToast('🚨 손실 한도 초과! 오늘 거래 차단','r');endSession(true);}}
+    if(pnl>=0&&S.todayPnl>=CFG.goal){addFeed('SYS','','🎯 일일 목표 달성! '+fmt$(S.todayPnl,true),'sys');showToast('🎯 일일 목표 달성!','g');}
+    addFeed(pnl>=0?'TP':'SL',sym,`${qty}주 @ ${fmt$(price)} — 손익: ${fmt$(pnl,true)}`,'sell');
+    if(!auto)showToast(`매도: ${sym} ${qty}주 | ${fmt$(pnl,true)}`,pnl>=0?'g':'r');
+    updateSessionMetrics();
+    // 자동 재매수 — 매도 후 현금 여유가 있으면 AI가 즉시 재분석 후 재진입
+    if(S.sessionActive && !S.halted && S.todayPnl < CFG.goal){
+      setTimeout(()=>aiRebalance(), 1500);
+    }
+    return{ok:true,msg:`✓ ${sym} ${qty}주 매도 | ${fmt$(pnl,true)}`};
+  }
+}
+
+// ─── Feed ─────────────────────────────────────────────────
+function addFeed(type,sym,desc,style){
+  const now=new Date().toTimeString().slice(0,5);
+  const styleMap={buy:'fb-buy',sell:'fb-sell',tp:'fb-tp',sl:'fb-sl',sys:'fb-sys'};
+  S.feedItems.unshift({time:now,type,sym,desc,style:styleMap[style]||'fb-sys'});
+  if(S.feedItems.length>100)S.feedItems.pop();
+  renderFeed();
+}
+function renderFeed(){
+  const feed=$('trade-feed');
+  if(!S.feedItems.length)return;
+  feed.innerHTML=S.feedItems.slice(0,40).map(f=>`
+    <div class="feed-item">
+      <span class="feed-time">${f.time}</span>
+      <span class="feed-badge ${f.style}">${f.type}</span>
+      <span style="font-weight:600;min-width:40px;font-family:var(--mono)">${f.sym||''}</span>
+      <span class="feed-desc">${f.desc}</span>
+    </div>`).join('');
+}
+function clearFeed(){S.feedItems=[];renderFeed();}
+
+// ─── Metrics ──────────────────────────────────────────────
+function updateSessionMetrics(){
+  const asset=portVal()+S.cash;
+  $('s-asset').textContent=fmt$(asset);
+  $('s-cash').textContent=fmt$(S.cash);
+  $('s-portval').textContent=fmt$(portVal());
+  const up=unrealPnl();
+  $('s-upnl').textContent=fmt$(up,true);
+  $('s-upnl').style.color=up>=0?'var(--green)':'var(--red)';
+  // Goal ring
+  const pct=Math.min(100,Math.max(0,S.todayPnl/CFG.goal*100));
+  const offset=264-(264*pct/100);
+  $('ring-progress').style.strokeDashoffset=offset;
+  $('ring-progress').style.stroke=pct>=100?'var(--green)':pct>=50?'var(--cyan)':'var(--blue)';
+  $('ring-pct').textContent=pct.toFixed(0)+'%';
+  $('g-cur').textContent=fmt$(S.todayPnl,true);
+  $('g-cur').style.color=S.todayPnl>=0?'var(--green)':'var(--red)';
+  $('g-rem').textContent=fmt$(Math.max(0,CFG.goal-S.todayPnl));
+  $('g-dlimit').textContent=fmt$(-S.todayLoss,true)+' / '+fmt$(CFG.dlimit);
+  $('g-trades').textContent=S.todayTrades;
+  updateTopbar();
+  renderRpRisk();
+  renderRpRules();
+  renderRpStats();
+}
+
+function updateTopbar(){
+  $('tb-day').textContent='Day '+S.simDay+' / '+CFG.days;
+  $('tb-total').textContent=fmt$(S.totalPnl,true);
+  $('tb-total').style.color=S.totalPnl>=0?'var(--green)':'var(--red)';
+  $('tb-today').textContent=fmt$(S.todayPnl,true);
+  $('tb-today').style.color=S.todayPnl>=0?'var(--green)':'var(--red)';
+  const wins=S.journal.filter(j=>j.result==='win').length;
+  $('tb-achieved').textContent=wins+' / '+S.journal.length+'일';
+}
+
+// ─── Positions ────────────────────────────────────────────
+function renderPositions(){
+  const body=$('pos-body');
+  if(!S.portfolio.length){
+    body.innerHTML=`<tr><td colspan="7" style="text-align:center;padding:16px;color:var(--text3)">보유 포지션 없음</td></tr>`;
+    return;
+  }
+  body.innerHTML=S.portfolio.map(p=>{
+    const pnl=(p.p-p.cost)*p.qty,pct=(p.p-p.cost)/p.cost*100;
+    return `<tr>
+      <td><strong>${p.sym}</strong></td><td>${p.qty}주</td>
+      <td>${fmt$(p.cost)}</td><td>${fmt$(p.p)}</td>
+      <td style="color:${pnl>=0?'var(--green)':'var(--red)'}">${fmt$(pnl,true)}</td>
+      <td style="color:${pct>=0?'var(--green)':'var(--red)'}">${fmtP(pct,true)}</td>
+      <td><button class="btn btn-sell btn-sm" onclick="_placeOrder('sell','${p.sym}',${p.qty},false);renderPositions()">전량매도</button></td>
+    </tr>`;
+  }).join('');
+}
+
+// ─── Rules ────────────────────────────────────────────────
+function addRule(){
+  const sym=($('nr-sym').value||'').toUpperCase();
+  const type=$('nr-type').value;
+  const price=parseFloat($('nr-price').value);
+  const qty=parseInt($('nr-qty').value)||10;
+  if(!sym||!price){showToast('종목과 목표가를 입력하세요','r');return;}
+  S.rules.push({id:S.ruleId++,sym,type,price,qty,active:true,triggered:false});
+  $('nr-sym').value='';$('nr-price').value='';
+  renderRulesList();renderRpRules();
+  showToast(`규칙 등록: ${sym} ${type==='tp'?'익절':type==='sl'?'손절':'저점매수'} @ ${fmt$(price)}`,'g');
+}
+function renderRulesList(){
+  const list=$('rules-list');
+  $('rules-count').textContent=S.rules.length+'개';
+  if(!S.rules.length){list.innerHTML='<div style="padding:16px;color:var(--text3);font-size:12px">등록된 규칙 없음</div>';return;}
+  const typeLabel={tp:'익절',sl:'손절',dip:'저점매수'};
+  const col={tp:'var(--green)',sl:'var(--red)',dip:'var(--blue)'};
+  list.innerHTML=S.rules.map(r=>`
+    <div class="rule-item">
+      <button class="toggle ${r.active?'on':'off'}" onclick="toggleRule(${r.id})"></button>
+      <strong style="font-family:var(--mono);min-width:44px">${r.sym}</strong>
+      <span class="badge ${r.type==='tp'?'b-win':r.type==='sl'?'b-loss':'b-partial'}">${typeLabel[r.type]}</span>
+      <span style="flex:1;color:var(--text2)">@ ${fmt$(r.price)} | ${r.qty}주</span>
+      <span style="font-size:10px;color:${r.active?'var(--green)':'var(--text3)'}">${r.active?'활성':'비활성'}</span>
+      <button class="btn btn-ghost btn-sm" onclick="deleteRule(${r.id})" style="color:var(--red)">삭제</button>
+    </div>`).join('');
+}
+function toggleRule(id){const r=S.rules.find(r=>r.id===id);if(r)r.active=!r.active;renderRulesList();renderRpRules();}
+function deleteRule(id){S.rules=S.rules.filter(r=>r.id!==id);renderRulesList();renderRpRules();}
+
+function checkRules(){
+  S.rules.filter(r=>r.active&&!r.triggered).forEach(r=>{
+    const cur=getP(r.sym);
+    let hit=(r.type==='tp'&&cur>=r.price)||(r.type==='sl'&&cur<=r.price)||(r.type==='dip'&&cur<=r.price);
+    if(hit){
+      r.triggered=true;r.active=false;
+      const side=r.type==='dip'?'buy':'sell';
+      const res=_placeOrder(side,r.sym,r.qty,true);
+      addFeed(r.type.toUpperCase(),r.sym,`자동 ${side==='buy'?'매수':'매도'} @ ${fmt$(cur)} — ${res.msg}`,'sys');
+      showToast(`🤖 ${r.sym} ${r.type==='tp'?'익절':r.type==='sl'?'손절':'저점매수'} 실행 @ ${fmt$(cur)}`,'g');
+    }
+  });
+}
+
+// ─── Calendar ─────────────────────────────────────────────
+function renderCalendar(){
+  const grid=$('cal-grid');
+  const cells=[];
+  for(let d=1;d<=CFG.days;d++){
+    const j=S.journal.find(j=>j.day===d);
+    const isToday=d===S.simDay&&S.sessionActive;
+    let cls='cal-cell';
+    let pnlTxt='';
+    if(j){cls+=' '+(j.result==='win'?'win':j.result==='loss'?'loss':j.result==='partial'?'win':'skip');pnlTxt=j.pnl>=0?'+$'+(j.pnl/1000).toFixed(1)+'k':'-$'+(Math.abs(j.pnl)/1000).toFixed(1)+'k';}
+    else if(isToday)cls+=' today';
+    else if(d>S.simDay)cls+=' future';
+    // Day 15와 16 사이에 페이즈 구분 표시
+    if(d === CFG.phaseSwitch + 1){
+      cells.push(`<div style="grid-column:1/-1;font-size:8px;color:var(--cyan);padding:3px 2px;border-top:1px solid var(--cyan);margin-top:2px;letter-spacing:0.05em">📗 PHASE 2 시작</div>`);
+    }
+    cells.push(`<div class="${cls}" onclick="showDayDetail(${d})" title="Day ${d}" style="${d<=CFG.phaseSwitch?'border-color:#1e3a6e':''} ">
+      <span class="cal-day-num">${d}</span>
+      <span class="cal-day-pnl">${pnlTxt||(d<=CFG.phaseSwitch?'P1':'P2')}</span>
+    </div>`);
+  }
+  grid.innerHTML=cells.join('');
+}
+
+function showDayDetail(d){
+  const j=S.journal.find(j=>j.day===d);
+  if(!j){showToast('Day '+d+': 아직 기록 없음','a');return;}
+  showToast(`Day ${d}: ${fmt$(j.pnl,true)} (${j.trades}거래, ${j.result==='win'?'목표달성':'미달성'})`,'g');
+}
+
+// ─── Journal ──────────────────────────────────────────────
+function renderJournal(){
+  const wins=S.journal.filter(j=>j.result==='win').length;
+  const losses=S.journal.filter(j=>j.result==='loss').length;
+  $('j-days').textContent=S.journal.length+' / '+CFG.days;
+  $('j-wins').textContent=wins+'일';
+  $('j-losses').textContent=losses+'일';
+  $('j-wr').textContent=S.journal.length?fmtP(wins/S.journal.length*100):'—';
+  $('journal-body').innerHTML=S.journal.length?S.journal.map(j=>{
+    const resultBadge={win:'<span class="badge b-win">목표달성</span>',loss:'<span class="badge b-loss">손실</span>',partial:'<span class="badge b-partial">부분달성</span>',skip:'<span class="badge b-skip">거래없음</span>'}[j.result];
+    const cumPnl=S.journal.filter(x=>x.day<=j.day).reduce((a,x)=>a+x.pnl,0);
+    return `<tr>
+      <td>${j.date}</td><td>Day ${j.day}</td><td>${j.trades}</td>
+      <td style="color:${j.pnl>=0?'var(--green)':'var(--red)'}">${fmt$(j.pnl,true)}</td>
+      <td style="color:${cumPnl>=0?'var(--green)':'var(--red)'}">${fmt$(cumPnl,true)}</td>
+      <td>${fmt$(j.goal)}</td><td>${resultBadge}</td>
+      <td style="color:var(--text2);font-size:10px">—</td>
+    </tr>`;
+  }).join('')
+  :'<tr><td colspan="8" style="text-align:center;padding:20px;color:var(--text3)">아직 기록이 없습니다. 세션을 시작하세요!</td></tr>';
+  // Chart
+  setTimeout(()=>drawJournalChart(),50);
+}
+
+function drawJournalChart(){
+  const canvas=$('journal-chart');if(!canvas)return;
+  const ctx=canvas.getContext('2d');
+  const W=canvas.offsetWidth||600,H=140;
+  canvas.width=W;canvas.height=H;ctx.clearRect(0,0,W,H);
+  if(!S.journal.length){ctx.fillStyle='var(--text3)';ctx.font='12px Space Grotesk';ctx.textAlign='center';ctx.fillText('데이터 없음',W/2,H/2);return;}
+  // Cumulative PnL line
+  let cum=0;const cumData=S.journal.map(j=>{cum+=j.pnl;return cum;});
+  const dailyData=S.journal.map(j=>j.pnl);
+  const allVals=[...cumData,...dailyData];
+  const mn=Math.min(...allVals,0),mx=Math.max(...allVals,CFG.goal);
+  const rng=mx-mn||1;
+  const n=cumData.length;
+  const pad={l:8,r:8,t:10,b:20};
+  const cw=W-pad.l-pad.r,ch=H-pad.t-pad.b;
+  // Zero line
+  const zy=pad.t+ch-(0-mn)/rng*ch;
+  ctx.setLineDash([3,4]);ctx.beginPath();ctx.moveTo(pad.l,zy);ctx.lineTo(W-pad.r,zy);ctx.strokeStyle='#2e2e38';ctx.lineWidth=1;ctx.stroke();ctx.setLineDash([]);
+  // Goal line
+  const gy=pad.t+ch-(CFG.goal-mn)/rng*ch;
+  ctx.setLineDash([5,4]);ctx.beginPath();ctx.moveTo(pad.l,gy);ctx.lineTo(W-pad.r,gy);ctx.strokeStyle='#14532d';ctx.lineWidth=1;ctx.stroke();ctx.setLineDash([]);
+  // Daily bars
+  const bw=cw/n*0.5,gap=cw/n;
+  dailyData.forEach((v,i)=>{
+    const barH=Math.abs(v)/rng*ch;
+    const x=pad.l+i*gap+(gap-bw)/2;
+    const y=v>=0?zy-barH:zy;
+    ctx.fillStyle=v>=0?'rgba(34,197,94,0.25)':'rgba(244,63,94,0.25)';
+    ctx.fillRect(x,y,bw,Math.max(2,barH));
+  });
+  // Cumulative line
+  const pts=cumData.map((v,i)=>({x:pad.l+i/(n-1||1)*cw,y:pad.t+ch-(v-mn)/rng*ch}));
+  if(pts.length>1){
+    const grad=ctx.createLinearGradient(0,0,W,0);
+    grad.addColorStop(0,'#22d3ee');grad.addColorStop(1,'#22c55e');
+    ctx.beginPath();ctx.moveTo(pts[0].x,pts[0].y);
+    pts.forEach(p=>ctx.lineTo(p.x,p.y));
+    ctx.strokeStyle=grad;ctx.lineWidth=2;ctx.stroke();
+    pts.forEach(p=>{ctx.beginPath();ctx.arc(p.x,p.y,3,0,Math.PI*2);ctx.fillStyle='#22d3ee';ctx.fill();});
+  }
+  // Labels
+  ctx.fillStyle='#404058';ctx.font='9px Space Mono';ctx.textAlign='left';
+  ctx.fillText('목표 '+fmt$(CFG.goal),pad.l+2,gy-3);
+}
+
+// ─── Report ───────────────────────────────────────────────
+function renderReport(){
+  const j=S.journal;
+  if(!j.length){$('report-content').innerHTML='<div style="text-align:center;padding:40px;color:var(--text3)">아직 기록이 없습니다.<br>시뮬레이션을 진행한 후 리포트를 확인하세요.</div>';return;}
+  const wins=j.filter(x=>x.result==='win').length;
+  const losses=j.filter(x=>x.result==='loss').length;
+  const partial=j.filter(x=>x.result==='partial').length;
+  const totalPnl=j.reduce((a,x)=>a+x.pnl,0);
+  const avgDailyPnl=totalPnl/j.length;
+  const winDays=j.filter(x=>x.pnl>0);const lossDays=j.filter(x=>x.pnl<0);
+  const avgWin=winDays.length?winDays.reduce((a,x)=>a+x.pnl,0)/winDays.length:0;
+  const avgLoss=lossDays.length?Math.abs(lossDays.reduce((a,x)=>a+x.pnl,0)/lossDays.length):0;
+  const maxWin=winDays.length?Math.max(...winDays.map(x=>x.pnl)):0;
+  const maxLoss=lossDays.length?Math.abs(Math.min(...lossDays.map(x=>x.pnl))):0;
+  const consistency=wins/j.length*100;
+  const projectedMonthly=avgDailyPnl*21;
+  const projectedAnnual=avgDailyPnl*252;
+  const returnPct=totalPnl/CFG.capital*100;
+
+  $('report-content').innerHTML=`
+    <div class="report-section">
+      <div class="report-title">📊 ${j.length}일 시뮬레이션 종합 성과</div>
+      <div class="mgrid" style="grid-template-columns:repeat(4,1fr);margin-bottom:0">
+        <div class="mc"><div class="mc-label">총 수익/손실</div><div class="mc-val" style="color:${totalPnl>=0?'var(--green)':'var(--red)'}">${fmt$(totalPnl,true)}</div></div>
+        <div class="mc"><div class="mc-label">수익률</div><div class="mc-val" style="color:${returnPct>=0?'var(--green)':'var(--red)'}">${fmtP(returnPct,true)}</div></div>
+        <div class="mc"><div class="mc-label">목표 달성률</div><div class="mc-val">${fmtP(consistency)}</div><div class="mc-sub">${wins}/${j.length}일 달성</div></div>
+        <div class="mc"><div class="mc-label">일 평균 손익</div><div class="mc-val" style="color:${avgDailyPnl>=0?'var(--green)':'var(--red)'}">${fmt$(avgDailyPnl,true)}</div></div>
+      </div>
+    </div>
+
+    <div class="report-section">
+      <div class="report-title">📈 일별 성과 분석</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        ${[
+          {l:'수익 일수',v:wins+'일',c:'var(--green)'},
+          {l:'손실 일수',v:losses+'일',c:'var(--red)'},
+          {l:'부분달성 일수',v:partial+'일',c:'var(--amber)'},
+          {l:'평균 수익일 수익',v:fmt$(avgWin,true),c:'var(--green)'},
+          {l:'평균 손실일 손실',v:'-'+fmt$(avgLoss),c:'var(--red)'},
+          {l:'최대 수익일',v:fmt$(maxWin,true),c:'var(--green)'},
+          {l:'최대 손실일',v:'-'+fmt$(maxLoss),c:'var(--red)'},
+          {l:'손익비',v:avgLoss>0?(avgWin/avgLoss).toFixed(2)+':1':'N/A',c:'var(--text)'},
+        ].map(m=>`<div class="stats-row"><span style="color:var(--text2)">${m.l}</span><span style="font-family:var(--mono);font-weight:700;color:${m.c}">${m.v}</span></div>`).join('')}
+      </div>
+    </div>
+
+    <div class="report-section">
+      <div class="report-title">🎯 월 목표 $1,500 달성 분석</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
+        <div class="mc" style="border-color:${projectedMonthly>=1500?'var(--gmid)':'var(--border)'}">
+          <div class="mc-label">월 예상 수익 (21거래일)</div>
+          <div class="mc-val" style="color:${projectedMonthly>=1500?'var(--green)':projectedMonthly>=1000?'var(--amber)':'var(--red)'}">${fmt$(projectedMonthly,true)}</div>
+          <div class="mc-sub">${projectedMonthly>=1500?'✅ 월 $1,500 달성 가능':projectedMonthly>=1000?'⚠ 월 $1,500 미달':'❌ 목표 미달'}</div>
+        </div>
+        <div class="mc">
+          <div class="mc-label">일 평균 수익</div>
+          <div class="mc-val" style="color:${parseFloat(dailyAvg)>=71?'var(--green)':'var(--red)'}">${fmt$(dailyAvg,true)}</div>
+          <div class="mc-sub">${parseFloat(dailyAvg)>=71?'✅ 일 $71 목표 달성':'❌ 일 $71 미달'}</div>
+        </div>
+        <div class="mc">
+          <div class="mc-label">연 예상 수익</div>
+          <div class="mc-val" style="color:${projectedAnnual>=0?'var(--green)':'var(--red)'}">${fmt$(projectedAnnual,true)}</div>
+          <div class="mc-sub">연 ${fmtP(projectedAnnual/CFG.capital*100,true)} 수익률</div>
+        </div>
+        <div class="mc">
+          <div class="mc-label">목표 달성 안정성</div>
+          <div class="mc-val" style="color:${consistency>=60?'var(--green)':consistency>=40?'var(--amber)':'var(--red)'}">${consistency>=60?'안정적':consistency>=40?'불안정':'위험'}</div>
+          <div class="mc-sub">달성률 ${fmtP(consistency)} (${wins}/${j.length}일)</div>
+        </div>
+      </div>
+      <div style="background:var(--adim);border:1px solid var(--amid);border-radius:5px;padding:10px 14px;font-size:11px;color:var(--amber)">
+        ⚠ 시뮬레이션 성과를 단순 연장한 예상치입니다. 실제 시장에서는 변동성이 더 크고, 관세·실적 쇼크 같은 외부 이벤트로 월 목표가 달성 안 되는 달이 생길 수 있습니다.
+      </div>
+    </div>
+
+    <div class="report-section">
+      <div class="report-title">💡 실거래 전환 피드백</div>
+      <div style="display:flex;flex-direction:column;gap:8px;font-size:12px">
+        ${projectedMonthly>=1500
+          ?`<div style="color:var(--green)">✅ 월 $1,500 목표 달성 가능성 있음 — Alpaca Paper Trading으로 실시간 검증을 권장합니다.</div>`
+          :projectedMonthly>=900
+          ?`<div style="color:var(--amber)">⚠ 월 $1,500에 미달 (예상 ${fmt$(projectedMonthly,true)}) — TP/SL 비율 조정 후 재시뮬레이션 권장합니다.</div>`
+          :`<div style="color:var(--red)">❌ 월 $1,500 달성 어려움 — 전략을 전면 재검토하세요. 실거래 전환 보류.</div>`}
+        ${consistency>=70
+          ?`<div style="color:var(--green)">✅ 달성률 ${fmtP(consistency)} 우수 — 전략이 일관성 있게 작동하고 있습니다.</div>`
+          :consistency>=50
+          ?`<div style="color:var(--amber)">⚠ 달성률 ${fmtP(consistency)} 보통 — 나쁜 날 손실 관리를 강화하세요.</div>`
+          :`<div style="color:var(--red)">❌ 달성률 ${fmtP(consistency)} 낮음 — 진입 타이밍과 종목 선택 기준을 개선하세요.</div>`}
+        ${avgLoss>avgWin?`<div style="color:var(--red)">❌ 손익비 ${avgLoss>0?(avgWin/avgLoss).toFixed(2):0}:1 — 손실이 수익보다 큽니다. TP를 높이거나 SL을 낮추세요.</div>`:''}
+        ${maxLoss>CFG.dlimit*0.9?`<div style="color:var(--amber)">⚠ 최대 손실일이 한도에 근접 — 포지션 크기를 줄이세요.</div>`:''}
+        <div style="color:var(--text2);margin-top:4px">📌 권장 순서: 백테스트 3회 반복 → Alpaca Paper Trading 30일 → 실거래 전환</div>
+      </div>
+    </div>`;
+}
+
+// ─── Right panel ──────────────────────────────────────────
+function renderRpRisk(){
+  const lostPct=S.todayLoss/CFG.dlimit*100;
+  $('rp-risk').innerHTML=`
+    <div style="font-size:11px;margin-bottom:6px;display:flex;justify-content:space-between">
+      <span style="color:var(--text2)">일 손실</span>
+      <span style="font-family:var(--mono);color:${lostPct<50?'var(--green)':lostPct<80?'var(--amber)':'var(--red)'}">${fmt$(-S.todayLoss,true)} / ${fmt$(CFG.dlimit)}</span>
+    </div>
+    <div class="pbar"><div class="pfill" style="width:${Math.min(100,lostPct).toFixed(0)}%;background:${lostPct<50?'var(--green)':lostPct<80?'var(--amber)':'var(--red)'}"></div></div>
+    <div style="font-size:9px;color:var(--text3);margin-top:3px">${lostPct.toFixed(1)}% 소진 · 잔여 ${fmt$(CFG.dlimit-S.todayLoss)}</div>
+    <div style="font-size:11px;margin-top:8px;display:flex;justify-content:space-between">
+      <span style="color:var(--text2)">오늘 목표</span>
+      <span style="font-family:var(--mono);color:${S.todayPnl>=CFG.goal?'var(--green)':'var(--text)'}">${fmt$(S.todayPnl,true)} / ${fmt$(CFG.goal)}</span>
+    </div>
+    <div class="pbar"><div class="pfill" style="width:${Math.min(100,Math.max(0,S.todayPnl/CFG.goal*100)).toFixed(0)}%;background:var(--cyan)"></div></div>`;
+}
+function renderRpRules(){
+  const active=S.rules.filter(r=>r.active);
+  $('rp-rules').innerHTML=active.length?active.map(r=>`
+    <div style="display:flex;align-items:center;gap:6px;padding:4px 0;border-bottom:1px solid var(--border);font-size:11px">
+      <span style="font-family:var(--mono);font-weight:700;min-width:40px;color:${r.type==='tp'?'var(--green)':r.type==='sl'?'var(--red)':'var(--blue)'}">${r.type.toUpperCase()}</span>
+      <span style="font-weight:600">${r.sym}</span>
+      <span style="flex:1;color:var(--text2)">@ ${fmt$(r.price)}</span>
+    </div>`).join('')
+  :'<div style="font-size:11px;color:var(--text3)">활성 규칙 없음</div>';
+}
+function renderRpStats(){
+  const wins=S.journal.filter(j=>j.result==='win').length;
+  const total=S.journal.length;
+  $('rp-stats').innerHTML=`
+    ${[
+      {l:'진행',v:S.simDay+'/'+CFG.days+'일'},
+      {l:'목표달성',v:wins+'/'+total+'일 '+(total?'('+fmtP(wins/total*100)+')':'')},
+      {l:'누적손익',v:fmt$(S.totalPnl,true),c:S.totalPnl>=0?'var(--green)':'var(--red)'},
+      {l:'일평균',v:total?fmt$(S.totalPnl/total,true):'—'},
+    ].map(m=>`<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--border);font-size:11px">
+      <span style="color:var(--text2)">${m.l}</span>
+      <span style="font-family:var(--mono);${m.c?'color:'+m.c:''}">${m.v}</span>
+    </div>`).join('')}`;
+}
+
+// ─── Est ──────────────────────────────────────────────────
+function updateEst(){
+  const sym=$('o-sym').value;const qty=parseInt($('o-qty').value)||0;
+  const price=getP(sym);
+  $('e-sym').textContent=sym;$('e-price').textContent=fmt$(price);
+  $('e-total').textContent=price&&qty?fmt$(price*qty):'—';
+}
+
+// ─── Settings ─────────────────────────────────────────────
+function applySettings(){
+  CFG={
+    capital:parseFloat($('cfg-capital').value)||100000,
+    goal:parseFloat($('cfg-goal').value)||71,
+    dlimit:parseFloat($('cfg-dlimit').value)||2000,
+    days:parseInt($('cfg-days').value)||30,
+    sl:parseFloat($('cfg-sl').value)||0.5,
+    tp:parseFloat($('cfg-tp').value)||1.0,
+    possize:parseFloat($('cfg-possize').value)||10000,
+    speed:parseInt($('cfg-speed').value)||3000,
+  };
+  $('g-goal').textContent=fmt$(CFG.goal);
+  showToast('설정 적용됨','g');
+}
+function resetSim(){
+  if(!confirm('시뮬레이션 데이터를 모두 초기화할까요?'))return;
+  S={cash:CFG.capital,portfolio:[],journal:[],rules:[],ruleId:1,simDay:0,sessionActive:false,sessionStartTime:null,todayPnl:0,todayLoss:0,todayTrades:0,totalPnl:0,feedItems:[],simInterval:null,priceInterval:null,sessionTimer:null,sessionElapsed:0,halted:false};
+  renderCalendar();updateTopbar();renderPositions();
+  $('btn-start').style.display='';$('btn-stop').style.display='none';
+  $('pulse-dot').className='pulse inactive';$('session-label').textContent='세션 없음';
+  $('ring-progress').style.strokeDashoffset=264;$('ring-pct').textContent='0%';
+  $('trade-feed').innerHTML='<div style="padding:20px;text-align:center;color:var(--text3);font-size:12px">세션을 시작하면 거래 기록이 여기에 표시됩니다</div>';
+  $('ticker-body').innerHTML='';updateSessionMetrics();
+  showToast('시뮬레이션 초기화 완료','a');
+}
+
+function exportJournal(){
+  const rows=['날짜,Day,거래수,일손익,누적손익,목표,결과'];
+  let cum=0;
+  S.journal.forEach(j=>{cum+=j.pnl;rows.push(`${j.date},${j.day},${j.trades},${j.pnl.toFixed(2)},${cum.toFixed(2)},${j.goal},${j.result}`);});
+  const blob=new Blob([rows.join('\n')],{type:'text/csv'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='trading_journal.csv';a.click();
+  showToast('CSV 내보내기 완료','g');
+}
+
+
+
+
+// ─── AI 자동 재매수 (리밸런싱) ───────────────────────────
+function aiRebalance(){
+  if(!S.sessionActive || S.halted) return;
+  if(S.todayPnl >= CFG.goal){
+    addFeed('SYS','','🎯 일일 목표 달성 — 추가 매수 중단','sys');
+    return;
+  }
+
+  const TARGET_INVEST = (S.currentStocks||5) * CFG.possize; // 페이즈별 목표 투입금
+  const currentInvest = S.portfolio.reduce((a,p)=>a+p.p*p.qty, 0);
+  const gap = TARGET_INVEST - currentInvest;
+
+  if(gap < CFG.possize * 0.5){
+    // 투입금이 목표의 95% 이상이면 재매수 불필요
+    return;
+  }
+
+  // 이미 보유 중인 종목 제외하고 새 종목 선택
+  const heldSyms = S.portfolio.map(p=>p.sym);
+  const allScored = Object.keys(STOCKS)
+    .map(sym=>scoreStock(sym))
+    .sort((a,b)=>b.score-a.score)
+    .filter(s=>!heldSyms.includes(s.sym)); // 중복 매수 방지
+
+  if(!allScored.length){
+    addFeed('SYS','','재매수 가능 종목 없음 (모두 보유중)','sys');
+    return;
+  }
+
+  // 투입 가능한 금액으로 몇 종목 살 수 있는지 계산
+  const slotsNeeded = Math.max(1, Math.floor(gap / CFG.possize));
+  const maxRebuy = S.simDay <= CFG.phaseSwitch ? 2 : 1; // Phase1: 최대2, Phase2: 최대1
+  const toBuy = allScored.slice(0, Math.min(slotsNeeded, maxRebuy));
+
+  addFeed('SYS','',`♻ 리밸런싱 — 투입금 ${fmt$(currentInvest)} / 목표 ${fmt$(TARGET_INVEST)} | ${toBuy.map(s=>s.sym).join(', ')} 재매수`,'sys');
+
+  toBuy.forEach((rec, i)=>{
+    setTimeout(()=>{
+      if(!S.sessionActive || S.halted) return;
+      const price = STOCKS[rec.sym].p;
+      const qty   = Math.max(1, Math.floor(CFG.possize / price));
+      const cost  = price * qty;
+      if(cost > S.cash * 0.95){
+        addFeed('SYS', rec.sym, `재매수 스킵 — 현금 부족 (${fmt$(S.cash)})`, 'sys');
+        return;
+      }
+      _placeOrder('buy', rec.sym, qty, true);
+      addFeed('SYS', rec.sym, `♻ 재매수 완료 — ${rec.sig} | ${rec.reasons[0]||'신호'}`, 'sys');
+      renderPositions();
+      updateSessionMetrics();
+    }, i * 500);
+  });
+
+  setTimeout(()=>{ refreshAIRec(); renderRpRules(); }, toBuy.length * 500 + 300);
+}
+
+// ─── AI 자동 매수 ─────────────────────────────────────────
+function aiAutoBuy(){
+  if(!S.sessionActive) return;
+
+  // 대형주 풀 + 기술주 풀 혼합
+  const largeCap  = ['AAPL','MSFT','GOOGL','AMZN','META'];
+  const techGrowth = ['NVDA','AMD','CRWD','NFLX','PLTR','COIN'];
+
+  // 전체 종목 스코어링
+  const allScored = Object.keys(STOCKS).map(sym => scoreStock(sym)).sort((a,b)=>b.score-a.score);
+
+  // 대형주 최소 1개 + 기술주 최소 1개 + 스코어 상위 1개 (중복 제거)
+  const picked = [];
+  const addIfNew = (sym) => { if(!picked.find(p=>p.sym===sym)) { const s=allScored.find(x=>x.sym===sym); if(s) picked.push(s); } };
+
+  const maxStocks = S.currentStocks || CFG.phase1stocks;
+  const phase = S.simDay > CFG.phaseSwitch ? 2 : 1;
+
+  // 1) 대형주 중 스코어 최고
+  const bestLarge = allScored.find(s=>largeCap.includes(s.sym));
+  if(bestLarge) addIfNew(bestLarge.sym);
+
+  // 2) 기술주 중 스코어 최고
+  const bestTech = allScored.find(s=>techGrowth.includes(s.sym));
+  if(bestTech) addIfNew(bestTech.sym);
+
+  // 3) Phase 1이면 추가로 더 채움 (최대 5종목)
+  for(const s of allScored){ if(picked.length>=maxStocks) break; addIfNew(s.sym); }
+
+  // 종목당 포지션 크기 = possize, 매수 가능한 주수
+  const targetInvest = picked.length * CFG.possize;
+  const phaseTag = S.simDay <= CFG.phaseSwitch
+    ? `📘 Phase 1 (${picked.length}종목 × $${CFG.possize.toLocaleString()})`
+    : `📗 Phase 2 (${picked.length}종목 × $${CFG.possize.toLocaleString()})`;
+  addFeed('SYS','',`AI 자동매수 — ${phaseTag} | ${picked.map(p=>p.sym).join(', ')} | 총 투입 ${fmt$(targetInvest)}`,'sys');
+
+  picked.forEach((rec, i) => {
+    setTimeout(()=>{
+      if(!S.sessionActive) return;
+      const price = STOCKS[rec.sym].p;
+      const qty   = Math.max(1, Math.floor(CFG.possize / price));
+      const cost  = price * qty;
+      if(cost > S.cash){
+        addFeed('SYS', rec.sym, `잔액 부족으로 스킵 (필요 ${fmt$(cost)} / 잔액 ${fmt$(S.cash)})`,'sys');
+        return;
+      }
+      _placeOrder('buy', rec.sym, qty, true);
+      addFeed('SYS', rec.sym,
+        `AI 자동매수 #${i+1} — ${rec.sig} | RSI ${rec.rsi} | 변동성 ${rec.vol} | 사유: ${rec.reasons[0]||'종합신호'}`,
+        'sys');
+      renderPositions();
+      updateSessionMetrics();
+    }, i * 400);
+  });
+
+  // 추천 패널 업데이트 — 선택된 종목 하이라이트
+  setTimeout(()=>{
+    refreshAIRec();
+    showToast('🤖 AI 자동매수 완료: '+picked.map(p=>p.sym).join(', '),'g');
+  }, picked.length * 400 + 200);
+}
+
+// ─── AI 종목 추천 엔진 ────────────────────────────────────
+function genPriceSeries(base, n=40){
+  const arr=[base];
+  for(let i=1;i<n;i++) arr.push(+(arr[i-1]*(1+(Math.random()-0.49)*0.015)).toFixed(2));
+  return arr;
+}
+function calcRSI(prices, n=14){
+  if(prices.length<n+1) return 50;
+  let g=0,l=0;
+  for(let i=prices.length-n;i<prices.length;i++){
+    const d=prices[i]-prices[i-1];
+    if(d>0) g+=d; else l-=d;
+  }
+  const rs=(g/n)/((l/n)||0.001);
+  return +(100-100/(1+rs)).toFixed(1);
+}
+function calcMACD(prices){
+  const ema=(arr,n)=>arr.reduce((a,v,i)=>i===0?v:a*(1-2/(n+1))+v*(2/(n+1)),arr[0]);
+  if(prices.length<26) return {macd:0,signal:0};
+  const e12=ema(prices.slice(-12),12);
+  const e26=ema(prices.slice(-26),26);
+  const macd=+(e12-e26).toFixed(2);
+  return {macd, signal:+(macd*0.88).toFixed(2)};
+}
+function calcBB(prices, n=20){
+  const sl=prices.slice(-n);
+  const mean=sl.reduce((a,v)=>a+v,0)/n;
+  const std=Math.sqrt(sl.reduce((a,v)=>a+(v-mean)**2,0)/n);
+  const cur=prices[prices.length-1];
+  return {pct:+((cur-(mean-2*std))/(4*std)).toFixed(2), mean:+mean.toFixed(2)};
+}
+function scoreStock(sym){
+  const s=STOCKS[sym];
+  const prices=genPriceSeries(s.p*0.94, 50);
+  const rsi=calcRSI(prices);
+  const {macd,signal}=calcMACD(prices);
+  const bb=calcBB(prices);
+  const dayChg=(s.p-s.open)/s.open*100;
+  let score=0, reasons=[];
+  // RSI
+  if(rsi<35){score+=3;reasons.push('RSI 과매도('+rsi+')');}
+  else if(rsi<45){score+=1;reasons.push('RSI 중립하단('+rsi+')');}
+  else if(rsi>65){score-=2;reasons.push('RSI 과매수('+rsi+')');}
+  // MACD
+  if(macd>signal){score+=2;reasons.push('MACD 골든크로스');}
+  else{score-=1;reasons.push('MACD 데드크로스');}
+  // BB
+  if(bb.pct<0.2){score+=2;reasons.push('BB 하단 근접');}
+  else if(bb.pct>0.8){score-=1;reasons.push('BB 상단 근접');}
+  // 당일 움직임
+  if(dayChg>1){score+=1;reasons.push('당일 상승모멘텀');}
+  else if(dayChg<-1){score+=1;reasons.push('당일 낙폭과대');}
+  // 변동성 보너스 (데이트레이딩에 유리)
+  const volBonus={저:0,중:1,고:2,매우고:3}[s.vol]||0;
+  score+=volBonus;
+  const sig=score>=5?'강력매수':score>=3?'매수':score>=1?'관망':score>=-1?'중립':'매도';
+  return {sym, name:s.name, p:s.p, dayChg:+dayChg.toFixed(2), rsi, macd, bbPct:bb.pct, vol:s.vol, score, sig, reasons};
+}
+function getAIRecommendations(){
+  return Object.keys(STOCKS)
+    .map(sym=>scoreStock(sym))
+    .sort((a,b)=>b.score-a.score)
+    .slice(0,5);
+}
+function refreshAIRec(){
+  const recs=getAIRecommendations();
+  const sigColor={강력매수:'var(--green)',매수:'#4ade80',관망:'var(--amber)',중립:'var(--text2)',매도:'var(--red)'};
+  const sigBg={강력매수:'var(--gdim)',매수:'var(--gdim)',관망:'var(--adim)',중립:'var(--bg4)',매도:'var(--rdim)'};
+  $('ai-rec-body').innerHTML=recs.map((r,i)=>`
+    <div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:${i<4?'1px solid var(--border)':'none'}">
+      <div style="min-width:20px;font-size:11px;color:var(--text3);font-family:var(--mono)">#${i+1}</div>
+      <div style="flex:1">
+        <div style="display:flex;align-items:center;gap:7px;margin-bottom:3px">
+          <strong style="font-family:var(--mono);font-size:13px">${r.sym}</strong>
+          <span style="font-size:10px;color:var(--text2)">${r.name}</span>
+          <span style="font-size:10px;padding:1px 6px;border-radius:3px;background:${sigBg[r.sig]};color:${sigColor[r.sig]};font-weight:700">${r.sig}</span>
+          <span style="font-size:9px;color:var(--text3)">변동성: ${r.vol}</span>
+        </div>
+        <div style="display:flex;gap:10px;font-size:10px;color:var(--text2)">
+          <span>RSI <span style="color:${r.rsi<40?'var(--green)':r.rsi>60?'var(--red)':'var(--text)'}">${r.rsi}</span></span>
+          <span>MACD <span style="color:${r.macd>0?'var(--green)':'var(--red)'}">${r.macd>0?'+':''}${r.macd}</span></span>
+          <span>BB% <span style="color:${r.bbPct<0.3?'var(--green)':r.bbPct>0.7?'var(--red)':'var(--text)'}">${r.bbPct}</span></span>
+          <span style="color:${r.dayChg>=0?'var(--green)':'var(--red)'}">${r.dayChg>=0?'+':''}${r.dayChg}% 오늘</span>
+        </div>
+        <div style="font-size:9px;color:var(--text3);margin-top:2px">${r.reasons.slice(0,3).join(' · ')}</div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:4px;align-items:flex-end">
+        <span style="font-family:var(--mono);font-size:13px;font-weight:700">$${r.p.toFixed(2)}</span>
+        <button class="btn btn-start btn-sm" style="padding:3px 10px;font-size:10px"
+          onclick="$('o-sym').value='${r.sym}';updateEst();showAISymSignal('${r.sym}','${r.sig}')">선택</button>
+      </div>
+    </div>`).join('');
+}
+function showAISymSignal(sym, sig){
+  const col={강력매수:'var(--green)',매수:'#4ade80',관망:'var(--amber)',중립:'var(--text2)',매도:'var(--red)'}[sig];
+  $('ai-sym-signal').innerHTML=`<span style="color:${col}">● AI 신호: ${sig}</span> <span style="color:var(--text3)">— ${sym}</span>`;
+}
+
+
+
+// ─── Google Drive 동기화 (OAuth2 + Refresh Token) ────────
+const GDRIVE_FILE    = 'tradersim_30d_save.json';
+const GDRIVE_STORE   = 'tradersim_gdrive_v1';
+let gdriveToken      = null;
+let gdriveFileId     = null;
+let gdriveRefresh    = null;
+let gdriveClientId   = null;
+let gdriveClientSec  = null;
+
+// 저장된 인증 정보 복원
+(function loadGdriveAuth(){
+  try {
+    const raw = localStorage.getItem(GDRIVE_STORE);
+    if(!raw) return;
+    const d = JSON.parse(raw);
+    gdriveRefresh   = d.refresh   || null;
+    gdriveClientId  = d.clientId  || null;
+    gdriveClientSec = d.clientSec || null;
+    gdriveFileId    = d.fileId    || null;
+    if(gdriveRefresh && gdriveClientId && gdriveClientSec){
+      gdriveRefreshToken().then(ok=>{
+        if(ok){
+          document.getElementById('gdrive-step1')     && (document.getElementById('gdrive-step1').style.display='none');
+          document.getElementById('gdrive-connected') && (document.getElementById('gdrive-connected').style.display='');
+          document.getElementById('gdrive-status')    && (document.getElementById('gdrive-status').textContent='✓ 자동 연결됨');
+          if(document.getElementById('gdrive-client-id'))   document.getElementById('gdrive-client-id').value   = gdriveClientId;
+          if(document.getElementById('gdrive-client-secret'))document.getElementById('gdrive-client-secret').value = gdriveClientSec;
+        }
+      });
+    }
+  } catch(e){}
+})();
+
+async function gdriveRefreshToken(){
+  if(!gdriveRefresh || !gdriveClientId || !gdriveClientSec) return false;
+  try {
+    const r = await fetch('https://oauth2.googleapis.com/token',{
+      method:'POST',
+      headers:{'Content-Type':'application/x-www-form-urlencoded'},
+      body: new URLSearchParams({
+        client_id:     gdriveClientId,
+        client_secret: gdriveClientSec,
+        refresh_token: gdriveRefresh,
+        grant_type:    'refresh_token',
+      })
+    });
+    const d = await r.json();
+    if(d.access_token){
+      gdriveToken = d.access_token;
+      // 55분마다 자동 갱신
+      setTimeout(gdriveRefreshToken, 55*60*1000);
+      return true;
+    }
+    return false;
+  } catch(e){ return false; }
+}
+
+function setGdriveToken(t){ gdriveToken=t; }
+
+function gdriveOAuthStart(){
+  gdriveClientId  = document.getElementById('gdrive-client-id').value.trim();
+  gdriveClientSec = document.getElementById('gdrive-client-secret').value.trim();
+  if(!gdriveClientId || !gdriveClientSec){
+    showToast('Client ID와 Secret을 입력하세요','r'); return;
+  }
+  const params = new URLSearchParams({
+    client_id:     gdriveClientId,
+    redirect_uri:  'https://oauth2.example.com/code',
+    response_type: 'code',
+    scope:         'https://www.googleapis.com/auth/drive.file',
+    access_type:   'offline',
+    prompt:        'consent',
+  });
+  window.open('https://accounts.google.com/o/oauth2/v2/auth?'+params.toString(), '_blank', 'width=500,height=600');
+  document.getElementById('gdrive-step2').style.display = '';
+  showToast('팝업에서 Google 로그인 후 코드를 붙여넣으세요','a');
+}
+
+async function gdriveExchangeCode(){
+  const code = document.getElementById('gdrive-auth-code').value.trim();
+  if(!code){ showToast('인증 코드를 입력하세요','r'); return; }
+  document.getElementById('gdrive-status').textContent = '코드 교환 중...';
+  try {
+    const r = await fetch('https://oauth2.googleapis.com/token',{
+      method:'POST',
+      headers:{'Content-Type':'application/x-www-form-urlencoded'},
+      body: new URLSearchParams({
+        code,
+        client_id:     gdriveClientId,
+        client_secret: gdriveClientSec,
+        redirect_uri:  'https://oauth2.example.com/code',
+        grant_type:    'authorization_code',
+      })
+    });
+    const d = await r.json();
+    if(d.access_token && d.refresh_token){
+      gdriveToken   = d.access_token;
+      gdriveRefresh = d.refresh_token;
+      // 인증 정보 영구 저장
+      localStorage.setItem(GDRIVE_STORE, JSON.stringify({
+        refresh:   gdriveRefresh,
+        clientId:  gdriveClientId,
+        clientSec: gdriveClientSec,
+        fileId:    gdriveFileId,
+      }));
+      // 55분마다 자동 갱신 시작
+      setTimeout(gdriveRefreshToken, 55*60*1000);
+      document.getElementById('gdrive-step1').style.display     = 'none';
+      document.getElementById('gdrive-step2').style.display     = 'none';
+      document.getElementById('gdrive-connected').style.display = '';
+      document.getElementById('gdrive-status').textContent      = '✓ 연결 완료 — 자동 갱신 활성';
+      showToast('☁ Google Drive 연결 완료! 자동 동기화 시작','g');
+    } else {
+      document.getElementById('gdrive-status').textContent = '실패: '+JSON.stringify(d);
+      showToast('인증 실패. 코드를 다시 확인하세요','r');
+    }
+  } catch(e){
+    document.getElementById('gdrive-status').textContent = '오류: '+e.message;
+    showToast('연결 오류: '+e.message,'r');
+  }
+}
+
+function gdriveDisconnect(){
+  gdriveToken=null; gdriveRefresh=null; gdriveFileId=null;
+  localStorage.removeItem(GDRIVE_STORE);
+  document.getElementById('gdrive-step1').style.display     = '';
+  document.getElementById('gdrive-connected').style.display = 'none';
+  document.getElementById('gdrive-status').textContent      = '미연결';
+  showToast('Google Drive 연결 해제됨','a');
+}
+
+async function gdriveFindFile(){
+  try {
+    const r = await fetch(
+      "https://www.googleapis.com/drive/v3/files?q=name%3D'"+GDRIVE_FILE+"'%20and%20trashed%3Dfalse&fields=files(id,name,modifiedTime)",
+      {headers:{Authorization:'Bearer '+gdriveToken}}
+    );
+    const d = await r.json();
+    if(d.files && d.files.length){ gdriveFileId=d.files[0].id; return d.files[0]; }
+    return null;
+  } catch(e){ return null; }
+}
+
+async function gdriveSave(){
+  if(!gdriveToken){
+    // 토큰 만료 시 자동 갱신 시도
+    if(gdriveRefresh){ const ok=await gdriveRefreshToken(); if(!ok){ showToast('Drive 재연결 필요','r'); return; } }
+    else { showToast('Google Drive 미연결','a'); return; }
+  }
+  const data = JSON.stringify({
+    cash:S.cash, portfolio:S.portfolio, journal:S.journal,
+    rules:S.rules, ruleId:S.ruleId, simDay:S.simDay,
+    totalPnl:S.totalPnl, cfg:CFG, savedAt:new Date().toISOString()
+  });
+  const blob = new Blob([data],{type:'application/json'});
+  const meta = JSON.stringify({name:GDRIVE_FILE, mimeType:'application/json'});
+  const form = new FormData();
+  form.append('metadata', new Blob([meta],{type:'application/json'}));
+  form.append('file', blob);
+  try {
+    // fileId 없으면 먼저 검색
+    if(!gdriveFileId) await gdriveFindFile();
+    const url    = gdriveFileId
+      ? 'https://www.googleapis.com/upload/drive/v3/files/'+gdriveFileId+'?uploadType=multipart'
+      : 'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart';
+    const method = gdriveFileId ? 'PATCH' : 'POST';
+    const r = await fetch(url,{method,headers:{Authorization:'Bearer '+gdriveToken},body:form});
+    const d = await r.json();
+    if(d.id){
+      gdriveFileId = d.id;
+      // fileId 로컬에도 업데이트
+      const stored = JSON.parse(localStorage.getItem(GDRIVE_STORE)||'{}');
+      stored.fileId = d.id;
+      localStorage.setItem(GDRIVE_STORE, JSON.stringify(stored));
+      const el = document.getElementById('gdrive-status');
+      if(el) el.textContent = '✓ 저장: '+new Date().toLocaleTimeString('ko-KR');
+      showToast('☁ Drive 저장 완료 (Day '+S.simDay+')','g');
+    } else {
+      showToast('Drive 저장 실패','r');
+    }
+  } catch(e){ showToast('Drive 오류: '+e.message,'r'); }
+}
+
+async function gdriveLoad(){
+  if(!gdriveToken){
+    if(gdriveRefresh){ const ok=await gdriveRefreshToken(); if(!ok){ showToast('Drive 재연결 필요','r'); return; } }
+    else { showToast('Google Drive 미연결 — 설정 탭에서 연결하세요','a'); return; }
+  }
+  const el = document.getElementById('gdrive-status');
+  if(el) el.textContent = '불러오는 중...';
+  const file = await gdriveFindFile();
+  if(!file){ if(el) el.textContent='저장 파일 없음'; showToast('Drive에 저장 파일이 없습니다','a'); return; }
+  try {
+    const r = await fetch(
+      'https://www.googleapis.com/drive/v3/files/'+file.id+'?alt=media',
+      {headers:{Authorization:'Bearer '+gdriveToken}}
+    );
+    const snap = await r.json();
+    S.cash      = snap.cash      ?? S.cash;
+    S.portfolio = snap.portfolio ?? [];
+    S.journal   = snap.journal   ?? [];
+    S.rules     = snap.rules     ?? [];
+    S.ruleId    = snap.ruleId    ?? 1;
+    S.simDay    = snap.simDay    ?? 0;
+    S.totalPnl  = snap.totalPnl  ?? 0;
+    if(snap.cfg) Object.assign(CFG, snap.cfg);
+    saveState();
+    const t = new Date(snap.savedAt).toLocaleString('ko-KR');
+    if(el) el.textContent = '✓ 복원: '+t;
+    renderCalendar(); updateTopbar(); renderPositions();
+    renderRpRisk(); renderRpRules(); renderRpStats();
+    showToast('☁ Drive 복원 완료 — Day '+S.simDay,'g');
+  } catch(e){ if(el) el.textContent='오류: '+e.message; showToast('불러오기 실패','r'); }
+}
+
+// ─── 자동 저장 / 불러오기 (localStorage) ─────────────────
+const SAVE_KEY = 'tradersim_30d_v1';
+
+function saveState(){
+  try {
+    const snap = {
+      cash: S.cash,
+      portfolio: S.portfolio,
+      journal: S.journal,
+      rules: S.rules,
+      ruleId: S.ruleId,
+      simDay: S.simDay,
+      totalPnl: S.totalPnl,
+      cfg: CFG,
+      savedAt: new Date().toISOString(),
+    };
+    localStorage.setItem(SAVE_KEY, JSON.stringify(snap));
+  } catch(e){ console.warn('저장 실패:', e); }
+}
+
+function loadState(){
+  try {
+    const raw = localStorage.getItem(SAVE_KEY);
+    if(!raw) return false;
+    const snap = JSON.parse(raw);
+    S.cash      = snap.cash      ?? S.cash;
+    S.portfolio = snap.portfolio ?? [];
+    S.journal   = snap.journal   ?? [];
+    S.rules     = snap.rules     ?? [];
+    S.ruleId    = snap.ruleId    ?? 1;
+    S.simDay    = snap.simDay    ?? 0;
+    S.totalPnl  = snap.totalPnl  ?? 0;
+    if(snap.cfg) Object.assign(CFG, snap.cfg);
+    return snap;
+  } catch(e){ console.warn('불러오기 실패:', e); return false; }
+}
+
+function clearSave(){
+  if(!confirm('저장된 데이터를 삭제할까요? 시뮬레이션이 초기화됩니다.')) return;
+  localStorage.removeItem(SAVE_KEY);
+  location.reload();
+}
+
+// ─── Init ────────────────────────────────────────────────
+// 저장된 데이터 자동 불러오기
+const loaded = loadState();
+if(loaded){
+  const d = new Date(loaded.savedAt);
+  const label = d.toLocaleDateString('ko-KR',{month:'long',day:'numeric',hour:'2-digit',minute:'2-digit'});
+  setTimeout(()=>showToast('💾 저장 데이터 복원됨 ('+label+') — Day '+S.simDay,'g'), 800);
+}
+renderCalendar();
+updateTopbar();
+updateEst();
+renderRpRisk();
+renderRpRules();
+renderRpStats();
+$('g-goal').textContent=fmt$(CFG.goal);
+$('g-dlimit').textContent='$0 / '+fmt$(CFG.dlimit);
+$('s-asset').textContent=fmt$(loaded?S.cash:CFG.capital);
+$('s-cash').textContent=fmt$(loaded?S.cash:CFG.capital);
+// 자동 저장: 30초마다 + 세션 종료 시
+setInterval(saveState, 30000);
+window.addEventListener('beforeunload', saveState);
+</script>
+</body>
+</html>
