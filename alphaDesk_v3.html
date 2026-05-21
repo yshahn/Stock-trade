@@ -222,6 +222,7 @@ input:checked + .toggle-slider::after { transform: translateX(13px); }
           <div style="display:flex;align-items:center;gap:8px">
             <span class="badge badge-sim">PAPER</span>
             <span class="badge" id="mkt-badge" style="background:var(--green-dim);color:var(--green);border:1px solid var(--green-mid)">● MARKET OPEN</span>
+            <button onclick="showDebug()" style="padding:6px 12px;border-radius:5px;background:var(--amber-dim);color:var(--amber);font-family:var(--font-mono);font-size:11px;font-weight:700;border:1px solid #5a3a00;cursor:pointer">🔍 디버그</button>
             <button id="auto-trade-btn" onclick="aiAutoTrade()"
               style="padding:6px 14px;border-radius:5px;background:var(--green);color:#000;font-family:var(--font-mono);font-size:12px;font-weight:700;border:none;cursor:pointer">
               🤖 AI 자동매수
@@ -513,6 +514,24 @@ input:checked + .toggle-slider::after { transform: translateX(13px); }
 </div>
 
 <!-- Toast -->
+
+<!-- Debug Modal -->
+<div id="debug-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:99999;align-items:center;justify-content:center;">
+  <div style="background:#111418;border:1px solid #363d49;border-radius:10px;padding:20px;width:90%;max-width:600px;max-height:80vh;overflow-y:auto;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <span style="font-family:var(--font-mono);font-weight:600;color:var(--green)">🔍 디버그 패널</span>
+      <button onclick="document.getElementById('debug-modal').style.display='none'" style="background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer">×</button>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
+      <button onclick="debugPositions()" style="padding:6px 12px;border-radius:5px;background:var(--green);color:#000;font-family:var(--font-mono);font-size:11px;font-weight:700;border:none;cursor:pointer">📡 Alpaca 포지션 조회</button>
+      <button onclick="debugPortfolio()" style="padding:6px 12px;border-radius:5px;background:var(--blue-dim);color:var(--blue);font-family:var(--font-mono);font-size:11px;border:1px solid #0d3a6e;cursor:pointer">💼 앱 포트폴리오 상태</button>
+      <button onclick="debugAccount()" style="padding:6px 12px;border-radius:5px;background:var(--bg3);color:var(--text);font-family:var(--font-mono);font-size:11px;border:1px solid var(--border);cursor:pointer">🏦 계좌 정보</button>
+      <button onclick="debugForceSync()" style="padding:6px 12px;border-radius:5px;background:var(--amber-dim);color:var(--amber);font-family:var(--font-mono);font-size:11px;border:1px solid #5a3a00;cursor:pointer">🔄 강제 동기화</button>
+    </div>
+    <pre id="debug-output" style="background:#0a0c0f;border:1px solid #2a2f38;border-radius:6px;padding:12px;font-family:var(--font-mono);font-size:11px;color:#e8ecf0;white-space:pre-wrap;word-break:break-all;min-height:100px">버튼을 눌러 조회하세요...</pre>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -632,13 +651,23 @@ function renderDashboard(){
   document.getElementById('sb-cash').textContent=fmt$(state.cash);
 
   const portBody=document.getElementById('port-mini-body');
-  portBody.innerHTML=state.portfolio.map(p=>{
-    const pnl=(p.price-p.avgCost)*p.qty, pct=(p.price-p.avgCost)/p.avgCost*100;
-    return `<tr><td style="font-weight:600">${p.sym}</td><td>${p.qty}</td><td>$${p.avgCost.toFixed(2)}</td><td>$${p.price.toFixed(2)}</td>
+  const allPos = [
+    ...(state.portfolio||[]).map(p=>({...p, side:'long'})),
+    ...(state.shortPositions||[]).map(p=>({...p, side:'short'}))
+  ];
+  portBody.innerHTML=allPos.length ? allPos.map(p=>{
+    const isShort = p.side === 'short';
+    const pnl = isShort ? p.unrealizedPnl||0 : (p.price-p.avgCost)*p.qty;
+    const pct = isShort ? (p.unrealizedPnl||0)/Math.abs(p.avgCost*p.qty)*100 : (p.price-p.avgCost)/p.avgCost*100;
+    return `<tr>
+      <td style="font-weight:600">${p.sym} ${isShort?'<span style="font-size:9px;color:var(--red);background:var(--red-dim);padding:1px 4px;border-radius:2px">SHORT</span>':''}</td>
+      <td>${isShort?'-':''}${p.qty}</td>
+      <td>$${p.avgCost.toFixed(2)}</td>
+      <td>$${p.price.toFixed(2)}</td>
       <td class="${pnl>=0?'pos':'neg'}">${fmt$(pnl,true)}</td>
       <td class="${pct>=0?'pos':'neg'}">${fmtPct(pct,true)}</td>
       <td><button class="btn btn-ghost" style="padding:3px 8px;font-size:10px" onclick="document.getElementById('o-sym').value='${p.sym}';updateQuote()">주문</button></td></tr>`;
-  }).join('');
+  }).join('') : '<tr><td colspan="7" style="color:var(--muted);text-align:center;padding:20px">보유 포지션 없음</td></tr>';
 
   const rulesBody=document.getElementById('active-rules-body');
   rulesBody.innerHTML=state.rules.filter(r=>r.active).map(r=>{
@@ -822,6 +851,27 @@ async function checkRules(){
     if(r.type==='sl'  && cur <= r.price) triggered = true;
     if(r.type==='dip' && cur <= r.price) triggered = true;
     if(!triggered) continue;
+
+    // ── 안전장치: sell 계열은 실제 보유 확인 후 실행 ──
+    if(r.type === 'tp' || r.type === 'sl') {
+      const holding = state.portfolio.find(p => p.sym === r.sym && p.side !== 'short');
+      if(!holding || holding.qty <= 0) {
+        // 보유 없는데 sell 시도 → 규칙 비활성화만 하고 주문 안 냄
+        r.active = false;
+        r.triggered = true;
+        saveRules();
+        addFeedItem('SYS', r.sym,
+          `⚠ ${r.type.toUpperCase()} 규칙 취소 — 보유 포지션 없음 (공매도 방지)`, 'sys');
+        showToast(`⚠ ${r.sym} ${r.type.toUpperCase()} 취소 — 보유 없음`, 'a');
+        continue;
+      }
+      // 규칙 수량이 보유 수량 초과하면 보유 수량으로 조정
+      if(r.qty > holding.qty) {
+        addFeedItem('SYS', r.sym,
+          `⚠ 수량 조정: ${r.qty}주 → ${holding.qty}주 (보유 수량 기준)`, 'sys');
+        r.qty = holding.qty;
+      }
+    }
 
     // 즉시 비활성화 + 처리중 표시 (중복 실행 완전 차단)
     processingRules.add(r.id);
@@ -1152,15 +1202,30 @@ async function syncAlpacaPositions(){
     if(posR.ok){
       const positions = await posR.json();
       if(Array.isArray(positions)){
-        state.portfolio = positions
-          .filter(p=>parseFloat(p.qty||0) > 0) // 수량 0인 포지션 제외
-          .map(p=>({
+        // long(매수)만 포트폴리오에 표시, short(공매도)는 별도 표시
+        const longPos = positions.filter(p => p.side === 'long' && parseFloat(p.qty) > 0);
+        const shortPos = positions.filter(p => p.side === 'short');
+        if(shortPos.length > 0){
+          console.warn('⚠ 숏 포지션 발견:', shortPos.map(p=>p.symbol+' '+p.qty+'주').join(', '));
+          addFeedItem('SYS','','⚠ 숏 포지션 감지: '+shortPos.map(p=>p.symbol+' '+p.qty+'주').join(', '),'sys');
+        }
+        state.portfolio = longPos.map(p=>({
             sym:     p.symbol,
             qty:     parseFloat(p.qty),
             price:   parseFloat(p.current_price||p.avg_entry_price),
             avgCost: parseFloat(p.avg_entry_price),
+            side:    p.side,
             unrealizedPnl: parseFloat(p.unrealized_pl||0),
             unrealizedPct: parseFloat(p.unrealized_plpc||0)*100,
+          }));
+        // 숏 포지션도 별도 저장 (표시용)
+        state.shortPositions = shortPos.map(p=>({
+            sym:     p.symbol,
+            qty:     Math.abs(parseFloat(p.qty)),
+            price:   parseFloat(p.current_price||p.avg_entry_price),
+            avgCost: parseFloat(p.avg_entry_price),
+            side:    'short',
+            unrealizedPnl: parseFloat(p.unrealized_pl||0),
           }));
         console.log('포지션 동기화:', state.portfolio.map(p=>p.sym+' '+p.qty+'주').join(', '));
         positions.forEach(p=>{
@@ -1333,12 +1398,14 @@ function bulkAddRules(){
   state.rules = state.rules.filter(r=>!heldSyms.includes(r.sym));
 
   let count=0;
-  state.portfolio.forEach(p=>{
-    const baseCost = p.avgCost || p.price; // 매수 평균단가 기준
+  // long 포지션만 등록 (short 제외)
+  const longOnly = state.portfolio.filter(p => p.side !== 'short' && p.qty > 0);
+  longOnly.forEach(p=>{
+    const baseCost = p.avgCost || p.price;
     const tpPrice = +(baseCost*(1+tp/100)).toFixed(2);
     const slPrice = +(baseCost*(1-sl/100)).toFixed(2);
-    state.rules.push({id:state.ruleId++, sym:p.sym, type:'tp', price:tpPrice, qty:p.qty, ot:'market', active:true, triggered:false});
-    state.rules.push({id:state.ruleId++, sym:p.sym, type:'sl', price:slPrice, qty:p.qty, ot:'market', active:true, triggered:false});
+    state.rules.push({id:state.ruleId++, sym:p.sym, type:'tp', price:tpPrice, qty:p.qty, ot:'market', active:true, triggered:false, entryPrice:baseCost});
+    state.rules.push({id:state.ruleId++, sym:p.sym, type:'sl', price:slPrice, qty:p.qty, ot:'market', active:true, triggered:false, entryPrice:baseCost});
     count++;
   });
 
@@ -1545,6 +1612,8 @@ async function aiAutoTrade(){
           const fillPrice = price; // 시장가이므로 현재가 ≈ 체결가
           const tpPrice = +(fillPrice*(1+AUTO_TP/100)).toFixed(2);
           const slPrice = +(fillPrice*(1-AUTO_SL/100)).toFixed(2);
+          // 기존 동일 종목 TP/SL 규칙 삭제 후 재등록 (중복 방지)
+          state.rules = state.rules.filter(r => !(r.sym === sym && (r.type==='tp'||r.type==='sl')));
           state.rules.push({id:state.ruleId++, sym, type:'tp', price:tpPrice, qty, ot:'market', active:true, triggered:false, entryPrice:fillPrice});
           state.rules.push({id:state.ruleId++, sym, type:'sl', price:slPrice, qty, ot:'market', active:true, triggered:false, entryPrice:fillPrice});
           saveRules();
@@ -1585,6 +1654,64 @@ function addFeedItem(type,sym,desc,style){
 }
 
 
+
+// ─── Debug Functions ─────────────────────────────────────
+function showDebug(){
+  document.getElementById('debug-modal').style.display='flex';
+}
+function dbOut(text){
+  document.getElementById('debug-output').textContent = text;
+}
+
+async function debugPositions(){
+  dbOut('Alpaca /v2/positions 조회 중...');
+  if(!state.api.connected){ dbOut('❌ API 미연결'); return; }
+  const base = state.api.mode==='paper' ? 'https://paper-api.alpaca.markets' : 'https://api.alpaca.markets';
+  try {
+    const r = await fetch(base+'/v2/positions', {
+      headers:{'APCA-API-KEY-ID':state.api.key,'APCA-API-SECRET-KEY':state.api.secret}
+    });
+    const d = await r.json();
+    dbOut('HTTP ' + r.status + '\n\n' + JSON.stringify(d, null, 2));
+  } catch(e) { dbOut('❌ 오류: ' + e.message); }
+}
+
+async function debugAccount(){
+  dbOut('계좌 정보 조회 중...');
+  if(!state.api.connected){ dbOut('❌ API 미연결'); return; }
+  const base = state.api.mode==='paper' ? 'https://paper-api.alpaca.markets' : 'https://api.alpaca.markets';
+  try {
+    const r = await fetch(base+'/v2/account', {
+      headers:{'APCA-API-KEY-ID':state.api.key,'APCA-API-SECRET-KEY':state.api.secret}
+    });
+    const d = await r.json();
+    dbOut('HTTP ' + r.status + '\n\ncash: $' + d.cash + '\nequity: $' + d.equity + '\nbuying_power: $' + d.buying_power + '\nstatus: ' + d.status);
+  } catch(e) { dbOut('❌ 오류: ' + e.message); }
+}
+
+function debugPortfolio(){
+  const info = {
+    'portfolio 종목 수': state.portfolio.length,
+    'portfolio': state.portfolio.map(p => p.sym + ' ' + p.qty + '주 @ $' + p.avgCost.toFixed(2) + ' (현재 $' + p.price.toFixed(2) + ')'),
+    'cash': '$' + state.cash.toFixed(2),
+    'equity': '$' + state.equity.toFixed(2),
+    'rules 수': state.rules.length,
+    'api.connected': state.api.connected,
+    'api.mode': state.api.mode,
+  };
+  dbOut(JSON.stringify(info, null, 2));
+}
+
+async function debugForceSync(){
+  dbOut('강제 동기화 중...');
+  await syncAlpacaPositions();
+  renderDashboard();
+  dbOut('✅ 동기화 완료!\n\n포트폴리오 (' + state.portfolio.length + '종목):\n' +
+    state.portfolio.map(p => '  ' + p.sym + ' ' + p.qty + '주 @ avg $' + p.avgCost.toFixed(2)).join('\n') +
+    '\n\n현금: $' + state.cash.toFixed(2) +
+    '\n총 자산: $' + state.equity.toFixed(2));
+}
+
 // ─── 규칙 자동 저장/복원 ──────────────────────────────────
 
 function renderRuleSummaryRP(){
@@ -1622,9 +1749,9 @@ function loadRules(){
         .map((r,i)=>({
           ...r,
           id: r.id || (i+1),
-          // 페이지 로드 시 triggered 규칙 복구 (이전 세션 실패 규칙)
-          active: r.triggered ? true : r.active,
-          triggered: false
+          // 이전 세션에서 triggered된 규칙은 비활성 유지 (공매도 방지)
+          active: r.triggered ? false : r.active,
+          triggered: r.triggered || false
         }));
       state.ruleId = parseInt(rid)||Math.max(...state.rules.map(r=>r.id||0))+1;
       console.log('✅ 규칙 복원:', state.rules.length+'개', state.rules.map(r=>r.sym+' '+r.type+(r.active?' ✓':' ✗')).join(', '));
