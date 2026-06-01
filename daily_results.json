@@ -1,0 +1,22 @@
+[
+  {
+    "date": "2026-06-01",
+    "realized": 121.76,
+    "unrealized": 0,
+    "total": 121.76,
+    "trades": 3,
+    "wins": 1,
+    "equity": 101662.61
+  },
+  {
+    "date": "2026-05-22",
+    "realized": -166.17,
+    "unrealized": 138.11,
+    "total": -28.06,
+    "trades": 19,
+    "wins": 5,
+    "winRate": 26.3,
+    "equity": 99636.09,
+    "savedAt": "2026-05-22T18:30:47.160Z"
+  }
+]
