@@ -4,17 +4,17 @@
     "realized": -464.93,
     "unrealized": 0,
     "total": -464.93,
-    "trades": 65,
-    "wins": 34,
+    "trades": 12,
+    "wins": 8,
     "equity": 101197.19
   },
   {
     "date": "2026-06-01",
-    "realized": 121.76,
+    "realized": 1372.97,
     "unrealized": 0,
-    "total": 121.76,
-    "trades": 3,
-    "wins": 1,
+    "total": 1372.97,
+    "trades": 45,
+    "wins": 30,
     "equity": 101662.61
   },
   {
