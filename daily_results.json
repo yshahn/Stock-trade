@@ -9,6 +9,33 @@
     "equity": 105959.09
   },
   {
+    "date": "2026-06-26",
+    "total": 0,
+    "realized": 0,
+    "unrealized": 0,
+    "trades": 0,
+    "wins": 0,
+    "equity": 98342
+  },
+  {
+    "date": "2026-06-25",
+    "total": -678.52,
+    "realized": -678.52,
+    "unrealized": 0,
+    "trades": 0,
+    "wins": 0,
+    "equity": 98342
+  },
+  {
+    "date": "2026-06-24",
+    "total": -335.17,
+    "realized": -335.17,
+    "unrealized": 0,
+    "trades": 0,
+    "wins": 0,
+    "equity": 99020
+  },
+  {
     "date": "2026-06-23",
     "realized": -335.07,
     "unrealized": 0,
