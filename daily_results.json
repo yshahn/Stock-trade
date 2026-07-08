@@ -1,5 +1,14 @@
 [
   {
+    "date": "2026-07-08",
+    "realized": 505.49,
+    "unrealized": 0,
+    "total": 505.49,
+    "trades": 14,
+    "wins": 9,
+    "equity": 105325.72
+  },
+  {
     "date": "2026-07-07",
     "realized": -25.89,
     "unrealized": 0,
