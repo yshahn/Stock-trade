@@ -1,5 +1,23 @@
 [
   {
+    "date": "2026-09-17",
+    "realized": 1437.39,
+    "unrealized": 0,
+    "total": 1437.39,
+    "trades": 0,
+    "wins": 0,
+    "equity": 0
+  },
+  {
+    "date": "2026-09-16",
+    "realized": -475.97,
+    "unrealized": 0,
+    "total": -475.97,
+    "trades": 0,
+    "wins": 0,
+    "equity": 0
+  },
+  {
     "date": "2026-09-15",
     "realized": 171,
     "unrealized": 0,
@@ -9,94 +27,148 @@
     "equity": 98932.24
   },
   {
-    "date": "2026-09-04",
-    "realized": -136.54,
+    "date": "2026-09-14",
+    "realized": 64.07,
     "unrealized": 0,
-    "total": -136.54,
+    "total": 64.07,
+    "trades": 0,
+    "wins": 0,
+    "equity": 0
+  },
+  {
+    "date": "2026-09-11",
+    "realized": 561.11,
+    "unrealized": 0,
+    "total": 561.11,
+    "trades": 0,
+    "wins": 0,
+    "equity": 0
+  },
+  {
+    "date": "2026-09-10",
+    "realized": -734.59,
+    "unrealized": 0,
+    "total": -734.59,
+    "trades": 0,
+    "wins": 0,
+    "equity": 0
+  },
+  {
+    "date": "2026-09-09",
+    "realized": -86.11,
+    "unrealized": 0,
+    "total": -86.11,
+    "trades": 0,
+    "wins": 0,
+    "equity": 0
+  },
+  {
+    "date": "2026-09-04",
+    "realized": -137.9,
+    "unrealized": 0,
+    "total": -137.9,
     "trades": 13,
     "wins": 0,
     "equity": 98958.12
   },
   {
     "date": "2026-09-03",
-    "realized": -182.91,
+    "realized": -188.22,
     "unrealized": 0,
-    "total": -182.91,
+    "total": -188.22,
     "trades": 40,
     "wins": 21,
     "equity": 99099.97
   },
   {
     "date": "2026-09-02",
-    "realized": -323,
+    "realized": -327.09,
     "unrealized": 0,
-    "total": -323,
+    "total": -327.09,
     "trades": 38,
     "wins": 8,
     "equity": 99286.97
   },
   {
     "date": "2026-09-01",
-    "realized": -403.76,
+    "realized": -405.96,
     "unrealized": 0,
-    "total": -403.76,
+    "total": -405.96,
     "trades": 10,
     "wins": 3,
     "equity": 99612.17
   },
   {
     "date": "2026-08-31",
-    "realized": -248.28,
+    "realized": -252.51,
     "unrealized": 0,
-    "total": -248.28,
+    "total": -252.51,
     "trades": 23,
     "wins": 11,
     "equity": 100020.16
   },
   {
     "date": "2026-08-28",
-    "realized": 253.33,
+    "realized": 247.98,
     "unrealized": 0,
-    "total": 253.33,
+    "total": 247.98,
     "trades": 58,
     "wins": 29,
     "equity": 100273.79
   },
   {
-    "date": "2026-08-26",
-    "realized": -169.89,
+    "date": "2026-08-27",
+    "realized": 261.66,
     "unrealized": 0,
-    "total": -169.89,
+    "total": 261.66,
+    "trades": 0,
+    "wins": 0,
+    "equity": 0
+  },
+  {
+    "date": "2026-08-26",
+    "realized": -172.3,
+    "unrealized": 0,
+    "total": -172.3,
     "trades": 20,
     "wins": 4,
     "equity": 99761.21
   },
   {
     "date": "2026-08-25",
-    "realized": 47.63,
+    "realized": 44.18,
     "unrealized": 0,
-    "total": 47.63,
+    "total": 44.18,
     "trades": 31,
     "wins": 14,
     "equity": 99934.55
   },
   {
     "date": "2026-08-24",
-    "realized": 646.56,
+    "realized": 643.97,
     "unrealized": 0,
-    "total": 646.56,
+    "total": 643.97,
     "trades": 28,
     "wins": 24,
     "equity": 99889.51
   },
   {
     "date": "2026-08-21",
-    "realized": -165.76,
+    "realized": -167.84,
     "unrealized": 0,
-    "total": -165.76,
+    "total": -167.84,
     "trades": 18,
     "wins": 6,
     "equity": 99245.03
+  },
+  {
+    "date": "2026-08-19",
+    "realized": -218.04,
+    "unrealized": 0,
+    "total": -218.04,
+    "trades": 0,
+    "wins": 0,
+    "equity": 0
   },
   {
     "date": "2026-08-18",
